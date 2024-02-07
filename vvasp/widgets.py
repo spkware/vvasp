@@ -45,6 +45,7 @@ class VVASP(QMainWindow):
         super(VVASP,self).__init__()
         self.setWindowTitle('VVASP')
         vlayout = QVBoxLayout()
+        # TODO: Make this work with QDockWidget.
         self.vistaframe = QFrame() # can this be a widget
 
         # add the pyvista interactor object
@@ -54,7 +55,8 @@ class VVASP(QMainWindow):
         
         self.vistaframe.setLayout(vlayout)
         self.setCentralWidget(self.vistaframe)
-        self.plot_demo()
+        if filename is None:
+            self.plot_demo()
         self.show()
 
     def plot_demo(self):
