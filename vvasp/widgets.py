@@ -48,12 +48,16 @@ class VVASP(QMainWindow):
         super(VVASP,self).__init__()
         self.setWindowTitle('VVASP')
         self.resize(VVASP.DEFAULT_WIDTH,VVASP.DEFAULT_HEIGHT)
+        self.probes = []
+        self.active_probe = None
+
         vlayout = QVBoxLayout()
         # TODO: Make this work with QDockWidget.
         self.vistaframe = QFrame() # can this be a widget
 
         # add the pyvista interactor object
         self.plotter = QtInteractor(self.vistaframe)
+        self.plotter.add_axes()
 
         vlayout.addWidget(self.plotter.interactor)
         
@@ -74,12 +78,32 @@ class VVASP(QMainWindow):
     def contextMenuEvent(self, e):
         context = QMenu(self)
         for p in VAILD_PROBETYPES.keys():
-            print(p, flush=True)
             action = QAction(f'Add object: {p}', self)
-            action.triggered.connect(lambda checked, probe_type=p: self.add_probe_to_scene(probe_type))
+            action.triggered.connect(lambda checked, probe_type=p: self.render_new_probe_meshes(probe_type))
             context.addAction(action)
         context.exec(e.globalPos())
 
+
+    def render_new_probe_meshes(self, probe_type):
+        p = self.plotter
+        new_p = Probe(probe_type, np.array([0,0,0]), np.array([0,0,0]))
+        self.probes.append(new_p)
+        active_probe = len(self.probes) - 1
+        for i,prb in enumerate(self.probes):
+            for shnk in prb.shanks:
+                shnk.actor = p.add_mesh(shnk.mesh,color='#000000',opacity = 1,line_width=3)
+        self.update_active_probe_mesh(active_probe)
+    
+    def update_active_probe_mesh(self, active_probe):
+        self.active_probe = active_probe
+        p = self.plotter
+        print(f'active probe: {self.active_probe}',flush=True)
+        for (i,prb) in enumerate(self.probes):
+            if self.active_probe == i:
+                prb.make_active()
+            else:
+                prb.make_inactive()
+        
     def show_atlas(self, atlas):
         p = self.plotter 
         axes = pv.Axes(show_actor=True, actor_scale=2.0, line_width=5)
@@ -98,21 +122,15 @@ class VVASP(QMainWindow):
                 #FIXME: is the following line positive or negative?
                 s[0].rotate_x(-5,point=axes.origin, inplace=True) # allenCCF has a 5 degree tilt
             if s[1].acronym == 'root':
-                p.add_mesh(s[0],
+                p.add_mesh(s[0].translate(-self.bregma_location), #make bregma the origin
                            color = s[1]['rgb_triplet'],
                            opacity = 0.1,silhouette=False)
             else:
-                p.add_mesh(s[0],color=s[1]['rgb_triplet'],
+                p.add_mesh(s[0].translate(-self.bregma_location), #make bregma the origin
+                           color=s[1]['rgb_triplet'],
                            opacity = 0.7,
                            silhouette=dict(color='#000000',line_width=1))
 
-    def add_probe_to_scene(self, probe_type):
-        p = self.plotter
-        new_p = Probe(probe_type, np.array([0,0,0]), np.array([0,0,0]))
-        for shnk in new_p.shanks:
-            rect = pv.Rectangle(shnk.shank_vectors + self.bregma_location)
-            p.add_mesh(rect,color='#000000',opacity = 1,line_width=3)
-        
     def load_atlas(self,atlas):
         self.atlas_location =  Path('~').expanduser()/'.brainglobe'/'allen_mouse_25um_v1.2/'
         with open(self.atlas_location/'structures.json','r') as fd:
