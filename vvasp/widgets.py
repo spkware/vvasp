@@ -5,6 +5,7 @@ from .probe import *
 from PyQt5.QtWidgets import (QWidget,
                              QApplication,
                              QFrame,
+                             QMenu,
                              QGridLayout,
                              QFormLayout,
                              QVBoxLayout,
@@ -32,18 +33,21 @@ from PyQt5.QtWidgets import (QWidget,
                              QFileDialog,
                              QDialog,
                              QInputDialog)
-from PyQt5.QtGui import QImage, QPixmap,QBrush,QPen,QColor,QFont
+from PyQt5.QtGui import QContextMenuEvent, QImage, QPixmap,QBrush,QPen,QColor,QFont
 from PyQt5.QtCore import Qt,QSize,QRectF,QLineF,QPointF,QTimer,QSettings
 
 from pyvistaqt import QtInteractor, MainWindow
 
 
 class VVASP(QMainWindow):
-    def __init__(self,filename=None):
+    DEFAULT_WIDTH = 2280
+    DEFAULT_HEIGHT = 1520
+    def __init__(self,filename=None, atlas=None):
         # filename will be letting you plot the same probes again
         # It'll be just a human readable JSON file.
         super(VVASP,self).__init__()
         self.setWindowTitle('VVASP')
+        self.resize(VVASP.DEFAULT_WIDTH,VVASP.DEFAULT_HEIGHT)
         vlayout = QVBoxLayout()
         # TODO: Make this work with QDockWidget.
         self.vistaframe = QFrame() # can this be a widget
@@ -55,19 +59,28 @@ class VVASP(QMainWindow):
         
         self.vistaframe.setLayout(vlayout)
         self.setCentralWidget(self.vistaframe)
-        self.load_atlas()
-        if filename is None:
-            self.plot_demo()
+        self.load_atlas(atlas)
+        self.show_atlas(atlas)
         self.plotter.track_click_position(
             callback=lambda x: print(x-self.bregma_location,flush=True),
-            side='right',
-            double=False,
+            side='left',
+            double=True,
             viewport=False)
         # I would add a method to each probe to select which is closer.
 
+        self.probe_controls = QPushButton('Probe controls here')
         self.show()
 
-    def plot_demo(self):
+    def contextMenuEvent(self, e):
+        context = QMenu(self)
+        for p in VAILD_PROBETYPES.keys():
+            print(p, flush=True)
+            action = QAction(f'Add object: {p}', self)
+            action.triggered.connect(lambda checked, probe_type=p: self.add_probe_to_scene(probe_type))
+            context.addAction(action)
+        context.exec(e.globalPos())
+
+    def show_atlas(self, atlas):
         p = self.plotter 
         axes = pv.Axes(show_actor=True, actor_scale=2.0, line_width=5)
         axes.origin = self.bregma_location
@@ -91,22 +104,16 @@ class VVASP(QMainWindow):
             else:
                 p.add_mesh(s[0],color=s[1]['rgb_triplet'],
                            opacity = 0.7,
-                           silhouette=dict(color='#000000',line_width=1) )
-        probes = [Probe('24', np.array([-2037,887,-4542]), np.array([80,0,130])),
-                  Probe('24', np.array([-1351, 459, -4105]), np.array([70,0,-125])),
-                  Probe('24', np.array([-3378, -921, -4672]), np.array([75,75,35])),
-                  Probe('24', np.array([-3148, -2477, -3490]), np.array([60,0,-20])),
-                  Probe('24', np.array([-1860, -5, -3708]), np.array([45,0,-60]))]
-        for prb in probes:
-            circ = pv.Sphere(radius=100, center=prb.origin + self.bregma_location)
-            p.add_mesh(circ, opacity=1)
-            for shnk in prb.shanks:
-                rect = pv.Rectangle(shnk.shank_vectors + self.bregma_location)
-                #todo: PLOT A BALL AT THE ORIGIN OF THE PROBE
-                p.add_mesh(rect,color='#000000',opacity = 1,line_width=3)
+                           silhouette=dict(color='#000000',line_width=1))
 
-
-    def load_atlas(self):
+    def add_probe_to_scene(self, probe_type):
+        p = self.plotter
+        new_p = Probe(probe_type, np.array([0,0,0]), np.array([0,0,0]))
+        for shnk in new_p.shanks:
+            rect = pv.Rectangle(shnk.shank_vectors + self.bregma_location)
+            p.add_mesh(rect,color='#000000',opacity = 1,line_width=3)
+        
+    def load_atlas(self,atlas):
         self.atlas_location =  Path('~').expanduser()/'.brainglobe'/'allen_mouse_25um_v1.2/'
         with open(self.atlas_location/'structures.json','r') as fd:
             structures = json.load(fd)

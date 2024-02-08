@@ -5,6 +5,8 @@ Utility functions for visualizing probe and shank locations in 3D space.
 Max Melin, 2024
 """
 
+VAILD_PROBETYPES = {'NP24':(-410,-160,90,340),
+                    'NP1(3B)':(-35,)} # the valid probetypes and a tuple with the shank offsets from the origin
 class Shank:
     SHANK_DIMS_UM = np.array([70,-10_000,10]) # the dimensions of the shank in um
     def __init__(self, tip, angles):
@@ -23,10 +25,8 @@ class Shank:
         self.shank_vectors = shank_vectors
         
 class Probe:
-    VAILD_PROBETYPES = {'24':(-410,-160,90,340),
-                        '3B':(-35,)} # the valid probetypes and a tuple with the shank offsets from the origin
     def __init__(self, probetype, origin, angles):
-        assert probetype in Probe.VAILD_PROBETYPES.keys(), f'Invalid probetype: {probetype}'
+        assert probetype in VAILD_PROBETYPES.keys(), f'Invalid probetype: {probetype}'
         self.probetype = probetype
         self.origin = origin # the "true center" of the probe tip, [ML,AP,DV]
         angles = np.array(angles)
@@ -37,7 +37,7 @@ class Probe:
         self.__add_shanks()
 
     def __add_shanks(self):
-        for offset in Probe.VAILD_PROBETYPES[self.probetype]:
+        for offset in VAILD_PROBETYPES[self.probetype]:
             tip = np.array([offset,0,0])
             shnk = Shank(tip, self.angles)
             shnk.tip += self.origin
