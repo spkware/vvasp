@@ -1,5 +1,6 @@
 from .utils import *
 from .probe import *
+from . import io
 
 # todo: clean-up QT imports
 from PyQt5.QtWidgets import (QWidget,
@@ -46,6 +47,7 @@ class VVASP(QMainWindow):
         # filename will be letting you plot the same probes again
         # It'll be just a human readable JSON file.
         super(VVASP,self).__init__()
+        self.filename = filename
         self.setWindowTitle('VVASP')
         self.resize(VVASP.DEFAULT_WIDTH,VVASP.DEFAULT_HEIGHT)
         self.probes = []
@@ -83,9 +85,9 @@ class VVASP(QMainWindow):
     def _init_menubar(self):
         self.menubar = self.menuBar()
         self.fileMenu = self.menubar.addMenu('File')
-        self.fileMenu.addAction('Load experiment',self.load_experiment)
-        self.fileMenu.addAction('Save experiment',self.save_experiment)
-        self.fileMenu.addAction('Save experiment as',self.save_experiment_as)
+        self.fileMenu.addAction('Load experiment', self._load_experiment)
+        self.fileMenu.addAction('Save experiment',self._save_experiment)
+        self.fileMenu.addAction('Save experiment as',self._save_experiment_as)
         self.fileMenu.addAction('Quit',self.close)
         self.probeMenu = self.menubar.addMenu('Probe')
         for p in VAILD_PROBETYPES:
@@ -101,7 +103,7 @@ class VVASP(QMainWindow):
     
     def _init_probe_position_box(self):
         self.probe_position_box = QGroupBox('Probe Position')
-        xyzlabels = ['AP','ML','DV','Depth']
+        xyzlabels = ['AP','ML','DV','Depth (along probe axis)']
         anglelabels = ['Elevation', 'Azimuth', 'Roll']
         lineEdits = [QLineEdit() for _ in range(len(xyzlabels))]
         lineEdits2 = [QLineEdit() for _ in range(len(anglelabels))]
@@ -134,14 +136,18 @@ class VVASP(QMainWindow):
         self.bottom_horizontal_widgets.addWidget(self.probe_position_box)
 
 
-    def load_experiment(self):
+    def _load_experiment(self):
+        self.fname = QFileDialog.getOpenFileName(self, 'Open file', str(io.EXPERIMENT_DIR), filter='*.json')[0]
+        #TODO: load the file and probes
+    
+    def _save_experiment(self):
         raise NotImplementedError()
     
-    def save_experiment(self):
-        raise NotImplementedError()
-    
-    def save_experiment_as(self):
-        raise NotImplementedError()
+    def _save_experiment_as(self):
+        savename = QFileDialog.getSaveFileName(self, 'Save file', str(io.EXPERIMENT_DIR), filter='*.json')[0]
+        self.fname = savename
+        print(savename)
+        #TODO: save the file JSON
      
     def contextMenuEvent(self, e):
         context = QMenu(self)
