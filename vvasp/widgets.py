@@ -55,12 +55,19 @@ class VVASP(QMainWindow):
         
         self.vistaframe.setLayout(vlayout)
         self.setCentralWidget(self.vistaframe)
+        self.load_atlas()
         if filename is None:
             self.plot_demo()
+        self.plotter.track_click_position(
+            callback=lambda x: print(x-self.bregma_location,flush=True),
+            side='right',
+            double=False,
+            viewport=False)
+        # I would add a method to each probe to select which is closer.
+
         self.show()
 
     def plot_demo(self):
-        self.load_atlas()
         p = self.plotter 
         axes = pv.Axes(show_actor=True, actor_scale=2.0, line_width=5)
         axes.origin = self.bregma_location
@@ -97,7 +104,6 @@ class VVASP(QMainWindow):
                 rect = pv.Rectangle(shnk.shank_vectors + self.bregma_location)
                 #todo: PLOT A BALL AT THE ORIGIN OF THE PROBE
                 p.add_mesh(rect,color='#000000',opacity = 1,line_width=3)
-         
 
 
     def load_atlas(self):
