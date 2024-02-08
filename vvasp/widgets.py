@@ -51,7 +51,7 @@ class VVASP(QMainWindow):
         self.probes = []
         self.active_probe = None
 
-        vlayout = QVBoxLayout()
+        self.vlayout = QVBoxLayout()
         # TODO: Make this work with QDockWidget.
         self.vistaframe = QFrame() # can this be a widget
 
@@ -59,9 +59,10 @@ class VVASP(QMainWindow):
         self.plotter = QtInteractor(self.vistaframe)
         self.plotter.add_axes()
 
-        vlayout.addWidget(self.plotter.interactor)
+        self.vlayout.addWidget(self.plotter.interactor)
+        self.bottom_horizontal_widgets = QHBoxLayout() #bottom row for interaction
         
-        self.vistaframe.setLayout(vlayout)
+        self.vistaframe.setLayout(self.vlayout)
         self.setCentralWidget(self.vistaframe)
         self.load_atlas(atlas)
         self.show_atlas(atlas)
@@ -71,10 +72,77 @@ class VVASP(QMainWindow):
             double=True,
             viewport=False)
         # I would add a method to each probe to select which is closer.
-
-        self.probe_controls = QPushButton('Probe controls here')
+        self.initUI() 
+        self.vlayout.addLayout(self.bottom_horizontal_widgets)
         self.show()
+    
+    def initUI(self):
+        self._init_menubar()
+        self._init_probe_position_box()
+    
+    def _init_menubar(self):
+        self.menubar = self.menuBar()
+        self.fileMenu = self.menubar.addMenu('File')
+        self.fileMenu.addAction('Load experiment',self.load_experiment)
+        self.fileMenu.addAction('Save experiment',self.save_experiment)
+        self.fileMenu.addAction('Save experiment as',self.save_experiment_as)
+        self.fileMenu.addAction('Quit',self.close)
+        self.probeMenu = self.menubar.addMenu('Probe')
+        for p in VAILD_PROBETYPES:
+            self.probeMenu.addAction(f'Add Probe: {p}', lambda probe_type=p: self.render_new_probe_meshes(probe_type))
+        self.probeMenu.addAction('Remove Active Probe',self.remove_probe)
+        #self.probeMenu.addAction('Next Probe',self.next_probe)
+        #self.probeMenu.addAction('Previous Probe',self.previous_probe)
+        #self.probeMenu.addAction('Add Shank',self.add_shank)
+        #self.probeMenu.addAction('Remove Shank',self.remove_shank)
+        #self.probeMenu.addAction('Next Shank',self.next_shank)
+        #self.probeMenu.addAction('Previous Shank',self.previous_shank)
+        self.probeMenu
+    
+    def _init_probe_position_box(self):
+        self.probe_position_box = QGroupBox('Probe Position')
+        xyzlabels = ['AP','ML','DV','Depth']
+        anglelabels = ['Elevation', 'Azimuth', 'Roll']
+        lineEdits = [QLineEdit() for _ in range(len(xyzlabels))]
+        lineEdits2 = [QLineEdit() for _ in range(len(anglelabels))]
 
+        vbox = QVBoxLayout()
+        hbox = QHBoxLayout()
+        for label, line_edit in zip(xyzlabels, lineEdits):
+            hbox2 = QHBoxLayout()
+            hbox2.addWidget(QLabel(label))
+            hbox2.addWidget(line_edit)
+            hbox.addLayout(hbox2)
+        vbox.addLayout(hbox)
+
+        hbox = QHBoxLayout()
+        for label, line_edit in zip(anglelabels, lineEdits2):
+            hbox2 = QHBoxLayout()
+            hbox2.addWidget(QLabel(label))
+            hbox2.addWidget(line_edit)
+            hbox.addLayout(hbox2)
+        vbox.addLayout(hbox)
+        
+        self.probe_position_box.setLayout(vbox)
+
+        #TODO: connect the line edits to the probe position
+        #for line_edit in self.probe_position_box.lineEdits:
+        #    line_edit.textChanged.connect(self.update_probe_position)
+        #self.probe_position_box.setFocusPolicy(Qt.StrongFocus)
+        #self.probe_position_box.keyPressEvent = self.onKeyPress
+
+        self.bottom_horizontal_widgets.addWidget(self.probe_position_box)
+
+
+    def load_experiment(self):
+        raise NotImplementedError()
+    
+    def save_experiment(self):
+        raise NotImplementedError()
+    
+    def save_experiment_as(self):
+        raise NotImplementedError()
+     
     def contextMenuEvent(self, e):
         context = QMenu(self)
         for p in VAILD_PROBETYPES.keys():
@@ -82,6 +150,15 @@ class VVASP(QMainWindow):
             action.triggered.connect(lambda checked, probe_type=p: self.render_new_probe_meshes(probe_type))
             context.addAction(action)
         context.exec(e.globalPos())
+    
+    def remove_probe(self):
+        raise NotImplementedError('The code below was copilot generated and not tested')
+        if len(self.probes) > 0:
+            self.plotter.remove_actor(self.probes[-1].shanks[0].actor)
+            self.probes.pop(-1)
+            if self.active_probe == len(self.probes):
+                self.active_probe -= 1
+            self.update_active_probe_mesh(self.active_probe)
 
 
     def render_new_probe_meshes(self, probe_type):
