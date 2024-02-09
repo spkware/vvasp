@@ -10,11 +10,12 @@ VAILD_PROBETYPES = {'NP24':(-410,-160,90,340),
                     'NP1(3B)':(-35,)} # the valid probetypes and a tuple with the shank offsets from the origin
 class Shank:
     SHANK_DIMS_UM = np.array([70,-10_000,10]) # the dimensions of the shank in um
-    def __init__(self, tip, angles, active=True):
+    def __init__(self, vistaplotter, tip, angles, active=True):
+        self.plotter = vistaplotter
         self.tip = tip # [ML,AP,DV], the corner of the shank, used for drawing the shank
         self.angles = angles # [elev, spin, yaw], the angles of the shank in degrees
         self.__define_vectors_for_rectangle()
-        self.actor = None # this gets returned by the pyvista plotter and will be set later
+        self.plot_new_shank_mesh()
 
     def __define_vectors_for_rectangle(self):
         shank_vectors = np.array([[Shank.SHANK_DIMS_UM[0],Shank.SHANK_DIMS_UM[1],0], #the orthogonal set of vectors used to define a rectangle, these will be translated and rotated about the tip
@@ -30,18 +31,13 @@ class Shank:
     def mesh(self):
         return pv.Rectangle(self.shank_vectors)
     
-    #@property
-    #def actor(self):
-    #    actor = pv.Actor(mapper=pv.DataSetMapper(self.mesh))
-    #    if self.active:
-    #        actor.prop.color = 'red'
-    #    else:
-    #        actor.prop.color = 'black'
-    #    return actor
-        
+    def plot_new_shank_mesh(self):
+        self.actor = self.plotter.add_mesh(self.mesh,color='#000000',opacity = 1,line_width=3)
+    
 class Probe:
-    def __init__(self, probetype, origin, angles, active=True):
+    def __init__(self, vistaplotter, probetype, origin, angles, active=True):
         assert probetype in VAILD_PROBETYPES.keys(), f'Invalid probetype: {probetype}'
+        self.plotter = vistaplotter
         self.probetype = probetype
         self.active = active
         self.origin = origin # the "true center" of the probe tip, [ML,AP,DV]
@@ -67,8 +63,7 @@ class Probe:
     def __add_shanks(self):
         for offset in VAILD_PROBETYPES[self.probetype]:
             tip = np.array([offset,0,0])
-            shnk = Shank(tip, self.angles, self.active)
-            shnk.tip += self.origin
+            shnk = Shank(self.plotter, tip+self.origin, self.angles, self.active)
             shnk.shank_vectors += self.origin #move the shank to the origin of the probe (after rotation of individual shanks is already applied)
             self.shanks.append(shnk)
 
@@ -76,6 +71,6 @@ class Probe:
     def shank_meshes(self):
         return [shnk.mesh for shnk in self.shanks]
 
-    #@property
-    #def shank_actors(self):
-    #    return [shnk.actor for shnk in self.shanks]
+    @property
+    def shank_actors(self):
+        return [shnk.actor for shnk in self.shanks]

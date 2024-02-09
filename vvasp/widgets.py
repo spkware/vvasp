@@ -100,7 +100,7 @@ class VVASP(QMainWindow):
         self.probeMenu = self.menubar.addMenu('Probe')
         for p in VAILD_PROBETYPES:
             self.probeMenu.addAction(f'Add Probe: {p}', lambda probe_type=p: self.render_new_probe_meshes(probe_type))
-        self.probeMenu.addAction('Remove Active Probe',self.remove_probe)
+        #self.probeMenu.addAction('Remove Active Probe',self.probes[self.active_probe].remove_probe)
         #self.probeMenu.addAction('Next Probe',self.next_probe)
         #self.probeMenu.addAction('Previous Probe',self.previous_probe)
         #self.probeMenu.addAction('Add Shank',self.add_shank)
@@ -176,29 +176,14 @@ class VVASP(QMainWindow):
             context.addAction(action)
         context.exec(e.globalPos())
     
-    def remove_probe(self):
-        raise NotImplementedError('The code below was copilot generated and not tested')
-        if len(self.probes) > 0:
-            self.plotter.remove_actor(self.probes[-1].shanks[0].actor)
-            self.probes.pop(-1)
-            if self.active_probe == len(self.probes):
-                self.active_probe -= 1
-            self.update_active_probe_mesh(self.active_probe)
-
-
-    def render_new_probe_meshes(self, probe_type):
-        p = self.plotter
-        new_p = Probe(probe_type, np.array([0,0,0]), np.array([0,0,0]))
+    def render_new_probe_meshes(self, probe_type): #TODO: move this over to probe.py like i did for the atlas
+        new_p = Probe(self.plotter, probe_type, np.array([0,0,0]), np.array([0,0,0])) # the probe object will handle rendering here
         self.probes.append(new_p)
         active_probe = len(self.probes) - 1
-        for i,prb in enumerate(self.probes):
-            for shnk in prb.shanks:
-                shnk.actor = p.add_mesh(shnk.mesh,color='#000000',opacity = 1,line_width=3)
         self.update_active_probe_mesh(active_probe)
     
     def update_active_probe_mesh(self, active_probe):
         self.active_probe = active_probe
-        p = self.plotter
         print(f'active probe: {self.active_probe}',flush=True)
         for (i,prb) in enumerate(self.probes):
             if self.active_probe == i:
