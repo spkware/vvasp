@@ -18,14 +18,14 @@ def main():
     parser.add_argument('atlas',
                         metavar='atlas',
                         type=str,
-                        default='CCF25', # TODO: write the help for this
+                        default=None, # TODO: write the help for this
                         nargs="?")
 
     opts = parser.parse_args()
     from .widgets import QApplication, VVASP
     app = QApplication(sys.argv)
     w = VVASP(filename = opts.filename,
-              atlas = opts.atlas)
+              atlas_name = opts.atlas)
     sys.exit(app.exec_())
     
 if __name__ == '__main__':

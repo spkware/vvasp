@@ -30,13 +30,3 @@ def rotation_matrix_from_degrees(x_rot, y_rot, z_rot):
     return Rz @ Rx @ Ry # this is the correct order of rotations for the probe
 
 
-def load_structure_mesh(atlaslocation,structures,acronym):
-    # meshes are in um
-    id = structures[structures.acronym == acronym].id.values
-    if len(id):
-        id = id[0]
-    else:
-        return
-    mesh = atlaslocation/'meshes'/f'{id}.obj'
-    mesh = pv.read(mesh)
-    return mesh, structures[structures.acronym == acronym].iloc[0]

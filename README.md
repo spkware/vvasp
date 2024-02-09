@@ -1,5 +1,5 @@
 # vvasp
-Volume Visualization and Stereotaxic Planning
+Volume Visualization and Stereotaxic Planning (pronounced wasp 🐝)
 
 
 To install in develop mode run ``pip install -e .`` from the repository folder.

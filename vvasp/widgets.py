@@ -1,6 +1,7 @@
 from .utils import *
 from .probe import *
 from . import io
+from . import atlas_utils 
 
 # todo: clean-up QT imports
 from PyQt5.QtWidgets import (QWidget,
@@ -43,15 +44,18 @@ from pyvistaqt import QtInteractor, MainWindow
 class VVASP(QMainWindow):
     DEFAULT_WIDTH = 2280
     DEFAULT_HEIGHT = 1520
-    def __init__(self,filename=None, atlas=None):
+    def __init__(self,filename=None, atlas_name=None):
         # filename will be letting you plot the same probes again
         # It'll be just a human readable JSON file.
         super(VVASP,self).__init__()
+        #if filename is not None: #TODO: implement CLI file load 
+        #    io.load_experiment(filename)
         self.filename = filename
         self.setWindowTitle('VVASP')
         self.resize(VVASP.DEFAULT_WIDTH,VVASP.DEFAULT_HEIGHT)
         self.probes = []
         self.active_probe = None
+        self.visible_regions = []
 
         self.vlayout = QVBoxLayout()
         # TODO: Make this work with QDockWidget.
@@ -66,14 +70,17 @@ class VVASP(QMainWindow):
         
         self.vistaframe.setLayout(self.vlayout)
         self.setCentralWidget(self.vistaframe)
-        self.load_atlas(atlas)
-        self.show_atlas(atlas)
+        self.atlas = atlas_utils.Atlas(self.plotter, atlas_name) #load the desired atlas
+        self.atlas.add_atlas_region_mesh('root')
+        self.atlas.add_atlas_region_mesh('CP') #TODO: this is just a placeholder for how we would call this later
+
         self.plotter.track_click_position(
-            callback=lambda x: print(x-self.bregma_location,flush=True),
+            callback=lambda x: print(x-self.atlas.bregma_location,flush=True),
             side='left',
             double=True,
             viewport=False)
         # I would add a method to each probe to select which is closer.
+
         self.initUI() 
         self.vlayout.addLayout(self.bottom_horizontal_widgets)
         self.show()
@@ -81,6 +88,7 @@ class VVASP(QMainWindow):
     def initUI(self):
         self._init_menubar()
         self._init_probe_position_box()
+        self._init_atlas_view_box()
     
     def _init_menubar(self):
         self.menubar = self.menuBar()
@@ -133,7 +141,18 @@ class VVASP(QMainWindow):
         #self.probe_position_box.setFocusPolicy(Qt.StrongFocus)
         #self.probe_position_box.keyPressEvent = self.onKeyPress
 
+        self.probe_position_box.setFixedWidth(700)
         self.bottom_horizontal_widgets.addWidget(self.probe_position_box)
+    
+    def update_probe_position(self):
+        raise NotImplementedError
+        self.probes[self.active_probe].move()
+
+
+    def _init_atlas_view_box(self):
+        self.atlas_view_box = QGroupBox(f'Atlas View: {io.preferences["atlas"]}')
+        self.atlas_view_box.setLayout(QVBoxLayout())
+        self.bottom_horizontal_widgets.addWidget(self.atlas_view_box)
 
 
     def _load_experiment(self):
@@ -187,44 +206,7 @@ class VVASP(QMainWindow):
             else:
                 prb.make_inactive()
         
-    def show_atlas(self, atlas):
-        p = self.plotter 
-        axes = pv.Axes(show_actor=True, actor_scale=2.0, line_width=5)
-        axes.origin = self.bregma_location
 
-        toplot = []
-        for acronym in ['root','MOp','CP','VISp','VISa','SCs','ACA','MD']:
-            toplot.append(load_structure_mesh(
-                self.atlas_location,self.structures,acronym))
-        rotate5deg = True
-
-        for s in toplot:
-            s[0].rotate_y(90, point=axes.origin, inplace=True) # rotate the meshes so that [x,y,z] => [ML,AP,DV]
-            s[0].rotate_x(-90, point=axes.origin, inplace=True)
-            if rotate5deg:
-                #FIXME: is the following line positive or negative?
-                s[0].rotate_x(-5,point=axes.origin, inplace=True) # allenCCF has a 5 degree tilt
-            if s[1].acronym == 'root':
-                p.add_mesh(s[0].translate(-self.bregma_location), #make bregma the origin
-                           color = s[1]['rgb_triplet'],
-                           opacity = 0.1,silhouette=False)
-            else:
-                p.add_mesh(s[0].translate(-self.bregma_location), #make bregma the origin
-                           color=s[1]['rgb_triplet'],
-                           opacity = 0.7,
-                           silhouette=dict(color='#000000',line_width=1))
-
-    def load_atlas(self,atlas):
-        self.atlas_location =  Path('~').expanduser()/'.brainglobe'/'allen_mouse_25um_v1.2/'
-        with open(self.atlas_location/'structures.json','r') as fd:
-            structures = json.load(fd)
-        with open(self.atlas_location/'metadata.json','r') as fd:
-            self.metadata = json.load(fd)
-        self.structures = pd.DataFrame(structures)    
-        # AP,DV,ML
-        self.bregma_location = np.array([216, 18,228 ])*self.metadata['resolution']
-
-        
     def closeEvent(self,event):
         self.plotter.close()
         event.accept()
