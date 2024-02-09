@@ -1,10 +1,14 @@
 from pathlib import Path
+import pyvista as pv
 import json
 
 PREFS_FILE = Path('~').expanduser() / '.vvasp' / 'preferences.json'
 EXPERIMENT_DIR = Path('~').expanduser() / 'vvasp_experiments'
+ATLAS_DIR = Path('~').expanduser()/'.brainglobe'
 
-DEFAULT_PREFERENCES = {'atlas':'ccf25',
+DEFAULT_PREFERENCES = {'atlas':'allen_mouse_25um_v1.2',
+                        'bregma_locations':{'allen_mouse_25um_v1.2':[216, 18,228],
+                                            },
                        'warn_collisions':True,
                        'warn_overwrite':True,
                        'warn_delete':True,}
@@ -49,5 +53,17 @@ def load_experiment():
 
 if not PREFS_FILE.exists():
     __setup_prefs()
+
+def load_structure_mesh(atlaspath,structures,acronym):
+    # meshes are in um
+    id = structures[structures.acronym == acronym].id.values
+    if len(id):
+        id = id[0]
+    else:
+        return
+    mesh = atlaspath/'meshes'/f'{id}.obj'
+    mesh = pv.read(mesh)
+    return mesh, structures[structures.acronym == acronym].iloc[0]
+
 
 preferences = __load_prefs()
