@@ -60,3 +60,15 @@ class Atlas:
                        opacity = 0.7,
                        silhouette=dict(color='#000000',line_width=1))
         self.visible_regions.append(region_acronym)
+    
+    def remove_atlas_region_mesh(self, region_acronym):
+        if region_acronym in self.visible_regions:
+            self.plotter.remove_actor(self.visible_regions[region_acronym])
+            self.visible_regions.remove(region_acronym)
+        else:
+            print(f'No region {region_acronym} to remove')
+    
+    def clear_atlas(self):
+        for region in self.visible_regions:
+            self.remove_atlas_region_mesh(region)
+        self.visible_regions = []
