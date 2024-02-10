@@ -1,7 +1,5 @@
 from . import io
-import pandas as pd
-import numpy as np
-
+from .utils import *
 
 def list_availible_atlases():
     return [x.name for x in io.ATLAS_DIR.glob('*')]

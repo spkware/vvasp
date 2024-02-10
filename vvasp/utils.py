@@ -8,7 +8,6 @@ import json
 
 from math import cos, sin, radians
 
-
 def rotation_matrix_from_degrees(x_rot, y_rot, z_rot):
     """Return a rotation matrix to rotate a vector in 3D space. Pass the angles in degrees, not radians.
     Max Melin, 2024"""
@@ -28,5 +27,3 @@ def rotation_matrix_from_degrees(x_rot, y_rot, z_rot):
 
     #return Rz @ Ry @ Rx
     return Rz @ Rx @ Ry # this is the correct order of rotations for the probe
-
-
