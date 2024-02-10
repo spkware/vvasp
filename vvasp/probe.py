@@ -1,5 +1,4 @@
 from .utils import *
-import pyvista as pv
 
 """
 Utility functions for visualizing probe and shank locations in 3D space.
@@ -8,16 +7,19 @@ Max Melin, 2024
 
 VAILD_PROBETYPES = {'NP24':(-410,-160,90,340),
                     'NP1(3B)':(-35,)} # the valid probetypes and a tuple with the shank offsets from the origin
+
+ACTIVE_COLOR = '#FF0000'
+INACTIVE_COLOR = '#000000'
 class Shank:
     SHANK_DIMS_UM = np.array([70,-10_000,10]) # the dimensions of the shank in um
     def __init__(self, vistaplotter, tip, angles, active=True):
         self.plotter = vistaplotter
         self.tip = tip # [ML,AP,DV], the corner of the shank, used for drawing the shank
         self.angles = angles # [elev, spin, yaw], the angles of the shank in degrees
-        self.__define_vectors_for_rectangle()
+        self.define_vectors_for_rectangle()
         self.plot_new_shank_mesh()
 
-    def __define_vectors_for_rectangle(self):
+    def define_vectors_for_rectangle(self):
         shank_vectors = np.array([[Shank.SHANK_DIMS_UM[0],Shank.SHANK_DIMS_UM[1],0], #the orthogonal set of vectors used to define a rectangle, these will be translated and rotated about the tip
                                   [Shank.SHANK_DIMS_UM[0],0,0],
                                   [0,0,Shank.SHANK_DIMS_UM[2]]]).T
@@ -31,8 +33,15 @@ class Shank:
     def mesh(self):
         return pv.Rectangle(self.shank_vectors)
     
+    
     def plot_new_shank_mesh(self):
-        self.actor = self.plotter.add_mesh(self.mesh,color='#000000',opacity = 1,line_width=3)
+        self.actor = self.plotter.add_mesh(self.mesh,color=ACTIVE_COLOR ,opacity = 1,line_width=3)
+
+    def move(self, position_shift):
+        self.tip += position_shift
+        self.define_vectors_for_rectangle()
+        self.plotter.remove_actor(self.actor) # for now, removing the actor and adding a new one is the only way to move the shank
+        self.actor = self.plotter.add_mesh(self.mesh,color=ACTIVE_COLOR,opacity = 1,line_width=3)
     
 class Probe:
     def __init__(self, vistaplotter, probetype, origin, angles, active=True):
@@ -40,7 +49,7 @@ class Probe:
         self.plotter = vistaplotter
         self.probetype = probetype
         self.active = active
-        self.origin = origin # the "true center" of the probe tip, [ML,AP,DV]
+        self.origin = np.array(origin) # the "true center" of the probe tip, [ML,AP,DV]
         angles = np.array(angles)
         angles[2] = -angles[2] # rotation about z is inverted for probes
         angles[0] = -angles[0] # rotation about x is inverted for probes
@@ -52,13 +61,13 @@ class Probe:
         self.active = True
         for shnk in self.shanks:
             #shnk.actor.prop.opacity = 1 #FIXME: opacity not working for some reason
-            shnk.actor.prop.color = 'red'
+            shnk.actor.prop.color = ACTIVE_COLOR
 
     def make_inactive(self):
         self.active = False
         for shnk in self.shanks:
             #shnk.actor.prop.opacity = .2
-            shnk.actor.prop.color = 'black'
+            shnk.actor.prop.color = INACTIVE_COLOR
 
     def __add_shanks(self):
         for offset in VAILD_PROBETYPES[self.probetype]:
@@ -74,3 +83,17 @@ class Probe:
     @property
     def shank_actors(self):
         return [shnk.actor for shnk in self.shanks]
+
+    def move(self, direction, multiplier):
+        match direction:
+            case 'left':
+                position_shift = np.array([-1,0,0]) * multiplier
+            case 'right':
+                position_shift = np.array([1,0,0]) * multiplier
+    
+        self.__move(position_shift)
+    
+    def __move(self, position_shift):     
+        self.origin += position_shift
+        for shnk in self.shanks:
+            shnk.move(position_shift)

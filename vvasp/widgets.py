@@ -30,15 +30,16 @@ from PyQt5.QtWidgets import (QWidget,
                              QGraphicsLineItem,
                              QGroupBox,
                              QTableWidget,
+                             QShortcut,
                              QMainWindow,
                              QDockWidget,
                              QFileDialog,
                              QDialog,
                              QInputDialog)
-from PyQt5.QtGui import QContextMenuEvent, QImage, QPixmap,QBrush,QPen,QColor,QFont
+from PyQt5.QtGui import QContextMenuEvent, QImage, QKeyEvent, QPixmap,QBrush,QPen,QColor,QFont,QKeySequence
 from PyQt5.QtCore import Qt,QSize,QRectF,QLineF,QPointF,QTimer,QSettings
 
-from pyvistaqt import QtInteractor, MainWindow
+from pyvistaqt import BackgroundPlotter, QtInteractor, MainWindow
 
 
 class VVASP(QMainWindow):
@@ -64,8 +65,8 @@ class VVASP(QMainWindow):
         # add the pyvista interactor object
         self.plotter = QtInteractor(self.vistaframe)
         self.plotter.add_axes()
-
         self.vlayout.addWidget(self.plotter.interactor)
+
         self.bottom_horizontal_widgets = QHBoxLayout() #bottom row for interaction
         
         self.vistaframe.setLayout(self.vlayout)
@@ -75,7 +76,7 @@ class VVASP(QMainWindow):
         self.atlas.add_atlas_region_mesh('CP') #TODO: this is just a placeholder for how we would call this later
 
         self.plotter.track_click_position(
-            callback=lambda x: print(x-self.atlas.bregma_location,flush=True),
+            callback=lambda x: print(x,flush=True),
             side='left',
             double=True,
             viewport=False)
@@ -89,6 +90,7 @@ class VVASP(QMainWindow):
         self._init_menubar()
         self._init_probe_position_box()
         self._init_atlas_view_box()
+        self._init_keyboard_shortcuts()
     
     def _init_menubar(self):
         self.menubar = self.menuBar()
@@ -113,41 +115,68 @@ class VVASP(QMainWindow):
         self.probe_position_box = QGroupBox('Probe Position')
         xyzlabels = ['AP','ML','DV','Depth (along probe axis)']
         anglelabels = ['Elevation', 'Azimuth', 'Roll']
-        lineEdits = [QLineEdit() for _ in range(len(xyzlabels))]
-        lineEdits2 = [QLineEdit() for _ in range(len(anglelabels))]
 
         vbox = QVBoxLayout()
-        hbox = QHBoxLayout()
-        for label, line_edit in zip(xyzlabels, lineEdits):
-            hbox2 = QHBoxLayout()
-            hbox2.addWidget(QLabel(label))
-            hbox2.addWidget(line_edit)
-            hbox.addLayout(hbox2)
-        vbox.addLayout(hbox)
 
-        hbox = QHBoxLayout()
-        for label, line_edit in zip(anglelabels, lineEdits2):
-            hbox2 = QHBoxLayout()
-            hbox2.addWidget(QLabel(label))
-            hbox2.addWidget(line_edit)
-            hbox.addLayout(hbox2)
-        vbox.addLayout(hbox)
+        self.xyz_fields = QHBoxLayout()
+        self.xyz_fields.addWidget(QLabel(xyzlabels[0]))
+        self.xline = QLineEdit()
+        self.xyz_fields.addWidget(self.xline)
+        self.xyz_fields.addWidget(QLabel(xyzlabels[1]))
+        self.yline = QLineEdit()
+        self.xyz_fields.addWidget(self.yline)
+        self.xyz_fields.addWidget(QLabel(xyzlabels[2]))
+        self.zline = QLineEdit()
+        self.xyz_fields.addWidget(self.zline)
+        vbox.addLayout(self.xyz_fields)
+
+        self.angle_fields = QHBoxLayout()
+        self.angle_fields.addWidget(QLabel(anglelabels[0]))
+        self.xangline = QLineEdit()
+        self.angle_fields.addWidget(self.xangline)
+        self.angle_fields.addWidget(QLabel(anglelabels[1]))
+        self.yangline = QLineEdit()
+        self.angle_fields.addWidget(self.yangline)
+        self.angle_fields.addWidget(QLabel(anglelabels[2]))
+        self.zangline = QLineEdit()
+        self.angle_fields.addWidget(self.zangline)
+        vbox.addLayout(self.angle_fields)
         
         self.probe_position_box.setLayout(vbox)
 
         #TODO: connect the line edits to the probe position
         #for line_edit in self.probe_position_box.lineEdits:
-        #    line_edit.textChanged.connect(self.update_probe_position)
+        #    line_edit.textChanged.connect(self.update_probe_position_via_text)
         #self.probe_position_box.setFocusPolicy(Qt.StrongFocus)
         #self.probe_position_box.keyPressEvent = self.onKeyPress
 
         self.probe_position_box.setFixedWidth(700)
         self.bottom_horizontal_widgets.addWidget(self.probe_position_box)
     
-    def update_probe_position(self):
-        raise NotImplementedError
-        self.probes[self.active_probe].move()
+    def _init_keyboard_shortcuts(self):
+        self.shortcuts = {
+             QShortcut(QKeySequence('a'), self): ['left', 1000], #TODO: move these to preferences.json?
+             QShortcut(QKeySequence('Shift+a'), self): ['left', 100], #TODO: move these to preferences.json?
+             QShortcut(QKeySequence('d'), self): ['right', 1000],
+             QShortcut(QKeySequence('w'), self): ['up', 1000],
+             QShortcut(QKeySequence('s'), self): ['down', 1000],
+             QShortcut(QKeySequence('w'), self): ['forward', 1000],
+             QShortcut(QKeySequence('s'), self): ['backward', 1000],
+        }
 
+    def _update_shortcut_actions(self): # rebind the actions when a new probe is active
+        for shortcut, (direction,multiplier) in self.shortcuts.items():
+            if len(self.probes) > 1: #handle case where no probe is active yet
+                shortcut.activated.disconnect()
+            print(direction, flush=True)
+            print(multiplier, flush=True)
+
+            def _shortcut_handler_function(d=direction, m=multiplier):
+                self.probes[self.active_probe].move(d, m) # connect the function to move the probe
+                self._update_probe_position_text() # update the text box with the new position
+            func = lambda d=direction,m=multiplier:_shortcut_handler_function(d,m)
+            shortcut.activated.connect(func)
+    
 
     def _init_atlas_view_box(self):
         self.atlas_view_box = QGroupBox(f'Atlas View: {io.preferences["atlas"]}')
@@ -157,7 +186,7 @@ class VVASP(QMainWindow):
 
     def _load_experiment(self):
         self.fname = QFileDialog.getOpenFileName(self, 'Open file', str(io.EXPERIMENT_DIR), filter='*.json')[0]
-        #TODO: load the file and probes
+        #TODO: load the file and probes from io module
     
     def _save_experiment(self):
         raise NotImplementedError()
@@ -166,7 +195,7 @@ class VVASP(QMainWindow):
         savename = QFileDialog.getSaveFileName(self, 'Save file', str(io.EXPERIMENT_DIR), filter='*.json')[0]
         self.fname = savename
         print(savename)
-        #TODO: save the file JSON
+        #TODO: save the file JSON in io module
      
     def contextMenuEvent(self, e):
         context = QMenu(self)
@@ -177,21 +206,33 @@ class VVASP(QMainWindow):
         context.exec(e.globalPos())
     
     def render_new_probe_meshes(self, probe_type): #TODO: move this over to probe.py like i did for the atlas
-        new_p = Probe(self.plotter, probe_type, np.array([0,0,0]), np.array([0,0,0])) # the probe object will handle rendering here
+        zero_position = [[0,0,0], [0,0,0]]
+        new_p = Probe(self.plotter, probe_type, *zero_position) # the probe object will handle rendering here
         self.probes.append(new_p)
         active_probe = len(self.probes) - 1
-        self.update_active_probe_mesh(active_probe)
+        self.update_active_probe(active_probe)
     
-    def update_active_probe_mesh(self, active_probe):
+    def update_active_probe(self, active_probe):
         self.active_probe = active_probe
         print(f'active probe: {self.active_probe}',flush=True)
         for (i,prb) in enumerate(self.probes):
             if self.active_probe == i:
-                prb.make_active()
+                prb.make_active() #this recolors the mesh
             else:
                 prb.make_inactive()
-        
+        self._update_probe_position_text()
+        self._update_shortcut_actions()
+    
+    def _update_probe_position_text(self):
+        prb = self.probes[self.active_probe]
+        self.xline.setText(str(prb.origin[1])) 
+        self.yline.setText(str(prb.origin[0])) 
+        self.zline.setText(str(prb.origin[2]))
+        self.xangline.setText(str(prb.angles[0])) 
+        self.yangline.setText(str(prb.angles[1])) 
+        self.zangline.setText(str(prb.angles[2]))
 
     def closeEvent(self,event):
         self.plotter.close()
         event.accept()
+
