@@ -63,7 +63,7 @@ class VVASP(QMainWindow):
         self.vistaframe = QFrame() # can this be a widget
 
         # add the pyvista interactor object
-        self.plotter = QtInteractor(self.vistaframe)
+        self.plotter = QtInteractor(self.vistaframe, auto_update=True)
         self.plotter.add_axes()
         self.vlayout.addWidget(self.plotter.interactor)
 
@@ -156,20 +156,19 @@ class VVASP(QMainWindow):
     def _init_keyboard_shortcuts(self):
         self.shortcuts = {
              QShortcut(QKeySequence('a'), self): ['left', 1000], #TODO: move these to preferences.json?
-             QShortcut(QKeySequence('Shift+a'), self): ['left', 100], #TODO: move these to preferences.json?
              QShortcut(QKeySequence('d'), self): ['right', 1000],
-             QShortcut(QKeySequence('w'), self): ['up', 1000],
-             QShortcut(QKeySequence('s'), self): ['down', 1000],
-             QShortcut(QKeySequence('w'), self): ['forward', 1000],
-             QShortcut(QKeySequence('s'), self): ['backward', 1000],
+             QShortcut(QKeySequence('f'), self): ['dorsal', 1000],
+             QShortcut(QKeySequence('c'), self): ['ventral', 1000],
+             QShortcut(QKeySequence('w'), self): ['anterior', 1000],
+             QShortcut(QKeySequence('s'), self): ['posterior', 1000],
+             
+             QShortcut(QKeySequence('Shift+a'), self): ['left', 100],
         }
 
     def _update_shortcut_actions(self): # rebind the actions when a new probe is active
         for shortcut, (direction,multiplier) in self.shortcuts.items():
             if len(self.probes) > 1: #handle case where no probe is active yet
                 shortcut.activated.disconnect()
-            print(direction, flush=True)
-            print(multiplier, flush=True)
 
             def _shortcut_handler_function(d=direction, m=multiplier):
                 self.probes[self.active_probe].move(d, m) # connect the function to move the probe
@@ -206,7 +205,7 @@ class VVASP(QMainWindow):
         context.exec(e.globalPos())
     
     def render_new_probe_meshes(self, probe_type): #TODO: move this over to probe.py like i did for the atlas
-        zero_position = [[0,0,0], [0,0,0]]
+        zero_position = [[0,0,0], [90,0,0]]
         new_p = Probe(self.plotter, probe_type, *zero_position) # the probe object will handle rendering here
         self.probes.append(new_p)
         active_probe = len(self.probes) - 1

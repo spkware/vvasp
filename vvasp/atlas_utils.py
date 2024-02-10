@@ -47,7 +47,7 @@ class Atlas:
         s[0].rotate_x(-90, point=axes.origin, inplace=True)
         if rotate5deg:
             #FIXME: is the following line positive or negative?
-            s[0].rotate_x(-5,point=axes.origin, inplace=True) # allenCCF has a 5 degree tilt
+            s[0].rotate_x(5,point=axes.origin, inplace=True) # allenCCF has a 5 degree tilt
         if s[1].acronym == 'root':
             self.plotter.add_mesh(s[0].translate(-self.bregma_location), #make bregma the origin
                        color = s[1]['rgb_triplet'],

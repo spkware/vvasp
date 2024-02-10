@@ -16,6 +16,7 @@ class Shank:
         self.plotter = vistaplotter
         self.tip = tip # [ML,AP,DV], the corner of the shank, used for drawing the shank
         self.angles = angles # [elev, spin, yaw], the angles of the shank in degrees
+        self.mesh = None
         self.define_vectors_for_rectangle()
         self.plot_new_shank_mesh()
 
@@ -28,10 +29,15 @@ class Shank:
         shank_vectors =  (rotation_matrix @ shank_vectors).T #rotate the shank vectors by probe angles
         shank_vectors += self.tip #translate the shank vectors to the tip of the shanks
         self.shank_vectors = shank_vectors
+        self.update_mesh()
     
-    @property
-    def mesh(self):
-        return pv.Rectangle(self.shank_vectors)
+    def update_mesh(self):
+        #self.mesh = pv.Rectangle(self.shank_vectors)
+        if self.mesh is not None:
+            self.mesh.shallow_copy(pv.Rectangle(self.shank_vectors)) #update the mesh
+        else:
+            self.mesh = pv.Rectangle(self.shank_vectors) #create the mesh for the first time
+        self.plotter.update()
     
     
     def plot_new_shank_mesh(self):
@@ -39,9 +45,11 @@ class Shank:
 
     def move(self, position_shift):
         self.tip += position_shift
-        self.define_vectors_for_rectangle()
-        self.plotter.remove_actor(self.actor) # for now, removing the actor and adding a new one is the only way to move the shank
-        self.actor = self.plotter.add_mesh(self.mesh,color=ACTIVE_COLOR,opacity = 1,line_width=3)
+        self.shank_vectors += position_shift
+        self.update_mesh()
+        #self.define_vectors_for_rectangle()
+        #self.plotter.remove_actor(self.actor) # for now, removing the actor and adding a new one is the only way to move the shank
+        #self.actor = self.plotter.add_mesh(self.mesh,color=ACTIVE_COLOR,opacity = 1,line_width=3)
     
 class Probe:
     def __init__(self, vistaplotter, probetype, origin, angles, active=True):
@@ -90,6 +98,14 @@ class Probe:
                 position_shift = np.array([-1,0,0]) * multiplier
             case 'right':
                 position_shift = np.array([1,0,0]) * multiplier
+            case 'dorsal':
+                position_shift = np.array([0,0,1]) * multiplier
+            case 'ventral':
+                position_shift = np.array([0,0,-1]) * multiplier
+            case 'anterior':    
+                position_shift = np.array([0,1,0]) * multiplier
+            case 'posterior':  
+                position_shift = np.array([0,-1,0]) * multiplier
     
         self.__move(position_shift)
     
