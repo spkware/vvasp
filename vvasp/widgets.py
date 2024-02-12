@@ -72,7 +72,7 @@ class VVASP(QMainWindow):
         self.vistaframe.setLayout(self.vlayout)
         self.setCentralWidget(self.vistaframe)
         self.atlas = atlas_utils.Atlas(self.plotter, atlas_name) #load the desired atlas
-        self.atlas.add_atlas_region_mesh('root')
+        self.atlas.initialize() #add all meshes, but don't render them yet
         self.atlas.add_atlas_region_mesh('CP') #TODO: this is just a placeholder for how we would call this later
 
         self.plotter.track_click_position(
