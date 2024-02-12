@@ -161,8 +161,23 @@ class VVASP(QMainWindow):
              QShortcut(QKeySequence('c'), self): ['ventral', 1000],
              QShortcut(QKeySequence('w'), self): ['anterior', 1000],
              QShortcut(QKeySequence('s'), self): ['posterior', 1000],
-             
-             QShortcut(QKeySequence('Shift+a'), self): ['left', 100],
+
+             QShortcut(QKeySequence('Ctrl+a'), self): ['left', 100], #TODO: move these to preferences.json?
+             QShortcut(QKeySequence('Ctrl+d'), self): ['right', 100],
+             QShortcut(QKeySequence('Ctrl+f'), self): ['dorsal', 100],
+             QShortcut(QKeySequence('Ctrl+c'), self): ['ventral', 100],
+             QShortcut(QKeySequence('Ctrl+w'), self): ['anterior', 100],
+             QShortcut(QKeySequence('Ctrl+s'), self): ['posterior', 100],
+
+             QShortcut(QKeySequence('Shift+a'), self): ['rotate left', 5], #TODO: move these to preferences.json?
+             QShortcut(QKeySequence('Shift+d'), self): ['rotate right', 5],
+             QShortcut(QKeySequence('Shift+w'), self): ['tilt down', 5],
+             QShortcut(QKeySequence('Shift+s'), self): ['tilt up', 5],
+             QShortcut(QKeySequence('q'), self): ['spin left', 5],
+             QShortcut(QKeySequence('e'), self): ['spin right', 5],
+
+             QShortcut(QKeySequence('Shift+f'), self): ['retract', 5],
+             QShortcut(QKeySequence('Shift+c'), self): ['drive', 5],
         }
 
     def _update_shortcut_actions(self): # rebind the actions when a new probe is active

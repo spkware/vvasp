@@ -17,6 +17,7 @@ class Shank:
         self.tip = tip # [ML,AP,DV], the corner of the shank, used for drawing the shank
         self.angles = angles # [elev, spin, yaw], the angles of the shank in degrees
         self.mesh = None
+        self.shank_vectors = None
         self.define_vectors_for_rectangle()
         self.plot_new_shank_mesh()
 
@@ -43,14 +44,6 @@ class Shank:
     def plot_new_shank_mesh(self):
         self.actor = self.plotter.add_mesh(self.mesh,color=ACTIVE_COLOR ,opacity = 1,line_width=3)
 
-    def move(self, position_shift):
-        self.tip += position_shift
-        self.shank_vectors += position_shift
-        self.update_mesh()
-        #self.define_vectors_for_rectangle()
-        #self.plotter.remove_actor(self.actor) # for now, removing the actor and adding a new one is the only way to move the shank
-        #self.actor = self.plotter.add_mesh(self.mesh,color=ACTIVE_COLOR,opacity = 1,line_width=3)
-    
 class Probe:
     def __init__(self, vistaplotter, probetype, origin, angles, active=True):
         assert probetype in VAILD_PROBETYPES.keys(), f'Invalid probetype: {probetype}'
@@ -96,20 +89,55 @@ class Probe:
         match direction:
             case 'left':
                 position_shift = np.array([-1,0,0]) * multiplier
+                self.__move(position_shift)
             case 'right':
                 position_shift = np.array([1,0,0]) * multiplier
+                self.__move(position_shift)
             case 'dorsal':
                 position_shift = np.array([0,0,1]) * multiplier
+                self.__move(position_shift)
             case 'ventral':
                 position_shift = np.array([0,0,-1]) * multiplier
+                self.__move(position_shift)
             case 'anterior':    
                 position_shift = np.array([0,1,0]) * multiplier
+                self.__move(position_shift)
             case 'posterior':  
                 position_shift = np.array([0,-1,0]) * multiplier
+                self.__move(position_shift)
+
+            case 'tilt up': 
+                angle_shift = np.array([1,0,0]) * multiplier
+                self.__rotate(angle_shift)
+            case 'tilt down':
+                angle_shift = np.array([-1,0,0]) * multiplier
+                self.__rotate(angle_shift)
+            case 'rotate left':
+                angle_shift = np.array([0,0,1]) * multiplier
+                self.__rotate(angle_shift)
+            case 'rotate right': 
+                angle_shift = np.array([0,0,-1]) * multiplier
+                self.__rotate(angle_shift)
+            case 'spin left':
+                angle_shift = np.array([0,1,0]) * multiplier
+                self.__rotate(angle_shift)
+            case 'spin right':
+                angle_shift = np.array([0,-1,0]) * multiplier
+                self.__rotate(angle_shift)
     
-        self.__move(position_shift)
-    
+
     def __move(self, position_shift):     
         self.origin += position_shift
         for shnk in self.shanks:
-            shnk.move(position_shift)
+            shnk.shank_vectors += position_shift
+            shnk.update_mesh()
+
+    def __rotate(self, angle_shift):
+        self.angles += angle_shift
+        self.shanks[0].angles += angle_shift #shanks.angles all point to the same memory location, so only need to modify one shank
+        for shnk,offset in zip(self.shanks, VAILD_PROBETYPES[self.probetype]):
+            tip = np.array([offset,0,0])
+            shnk.tip = tip
+            shnk.define_vectors_for_rectangle()
+            shnk.shank_vectors += self.origin
+            shnk.update_mesh()
