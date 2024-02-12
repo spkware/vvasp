@@ -11,7 +11,7 @@ VAILD_PROBETYPES = {'NP24':(-410,-160,90,340),
 ACTIVE_COLOR = '#FF0000'
 INACTIVE_COLOR = '#000000'
 class Shank:
-    SHANK_DIMS_UM = np.array([70,-10_000,10]) # the dimensions of the shank in um
+    SHANK_DIMS_UM = np.array([70,-10_000,20]) # the dimensions of the shank in um
     def __init__(self, vistaplotter, tip, angles, active=True):
         self.plotter = vistaplotter
         self.tip = tip # [ML,AP,DV], the corner of the shank, used for drawing the shank
@@ -119,11 +119,20 @@ class Probe:
                 angle_shift = np.array([0,0,-1]) * multiplier
                 self.__rotate(angle_shift)
             case 'spin left':
-                angle_shift = np.array([0,1,0]) * multiplier
-                self.__rotate(angle_shift)
-            case 'spin right':
                 angle_shift = np.array([0,-1,0]) * multiplier
                 self.__rotate(angle_shift)
+            case 'spin right':
+                angle_shift = np.array([0,1,0]) * multiplier
+                self.__rotate(angle_shift)
+            
+            case 'retract':
+                position_shift = -move3D(multiplier, *self.angles[[0,2]])
+                self.__move(position_shift.astype(np.int))
+                #self.__move(position_shift)
+            case 'advance':
+                position_shift = move3D(multiplier, *self.angles[[0,2]])
+                self.__move(position_shift.astype(np.int))
+                #self.__move(position_shift)
     
 
     def __move(self, position_shift):     

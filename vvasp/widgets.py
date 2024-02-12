@@ -176,8 +176,8 @@ class VVASP(QMainWindow):
              QShortcut(QKeySequence('q'), self): ['spin left', 5],
              QShortcut(QKeySequence('e'), self): ['spin right', 5],
 
-             QShortcut(QKeySequence('Shift+f'), self): ['retract', 5],
-             QShortcut(QKeySequence('Shift+c'), self): ['drive', 5],
+             QShortcut(QKeySequence('Shift+f'), self): ['retract', 1000],
+             QShortcut(QKeySequence('Shift+c'), self): ['advance', 1000],
         }
 
     def _update_shortcut_actions(self): # rebind the actions when a new probe is active

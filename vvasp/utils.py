@@ -27,3 +27,13 @@ def rotation_matrix_from_degrees(x_rot, y_rot, z_rot):
 
     #return Rz @ Ry @ Rx
     return Rz @ Rx @ Ry # this is the correct order of rotations for the probe
+
+def move3D(distance, phi, theta):
+    """Move a point in 3D space by a distance and angles. 
+    Max Melin, 2024"""
+    theta = radians(theta)
+    phi = radians(phi)
+    x = -distance * cos(phi) * sin(theta)
+    y = distance * cos(phi) * cos(theta)
+    z = distance * sin(phi)
+    return np.array([x, y, z])
