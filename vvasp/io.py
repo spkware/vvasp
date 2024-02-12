@@ -3,9 +3,12 @@ from .utils import *
 
 PREFS_FILE = Path('~').expanduser() / 'vvasp' / 'preferences.json'
 MOVEMENT_KEYBINDS_FILE = Path('~').expanduser() / 'vvasp' / 'movement_keybinds.json'
+STATIC_KEYBINDS_FILE = Path('~').expanduser() / 'vvasp' / 'static_keybinds.json'
 EXPERIMENT_DIR = Path('~').expanduser() / 'vvasp' / 'experiments'
 EXPORT_DIR = Path('~').expanduser() / 'vvasp' / 'exports'
 ATLAS_DIR = Path('~').expanduser()/'.brainglobe'
+
+ALL_PREF_FILES = [PREFS_FILE, MOVEMENT_KEYBINDS_FILE, STATIC_KEYBINDS_FILE]
 
 DEFAULT_PREFERENCES = {'atlas':'allen_mouse_25um_v1.2',
                         'bregma_locations':{'allen_mouse_25um_v1.2':[216, 18,228],
@@ -14,7 +17,7 @@ DEFAULT_PREFERENCES = {'atlas':'allen_mouse_25um_v1.2',
                        'warn_overwrite':True,
                        'warn_delete':True,}
 
-DEFAULT_MOVEMENT_KEYBINDS = {'a': self.left(1000),
+DEFAULT_MOVEMENT_KEYBINDS = {'a': ['left', 1000],
                              'd': ['right', 1000],
                              'f': ['dorsal', 1000],
                              'c': ['ventral', 1000],
@@ -37,6 +40,18 @@ DEFAULT_MOVEMENT_KEYBINDS = {'a': self.left(1000),
          
                              'Shift+f': ['retract', 1000],
                              'Shift+c': ['advance', 1000],}
+
+DEFAULT_STATIC_KEYBINDS = {'Ctrl+o': 'open_experiment',
+                           #'Ctrl+s': 'save',
+                           #'Ctrl+Shift+s': 'save as',
+                           #'Ctrl+Shift+o': 'open',
+                           #'Ctrl+e': 'export',
+                           #'Ctrl+Shift+e': 'export as',
+                           'n': 'next_probe',
+                           'p': 'previous_probe',}
+
+ALL_PREFS = [DEFAULT_PREFERENCES, DEFAULT_MOVEMENT_KEYBINDS, DEFAULT_STATIC_KEYBINDS]
+                           
          
 
 
@@ -52,19 +67,13 @@ def __setup_prefs():
     if not PREFS_FILE.parent.exists():
         PREFS_FILE.parent.mkdir()
 
-    with open(PREFS_FILE,'w') as fd:
-        json.dump(DEFAULT_PREFERENCES,
-                  fd,
-                  sort_keys=True,
-                  indent=4)
-    print(f'Preferences file created at {PREFS_FILE}')
-
-    with open(MOVEMENT_KEYBINDS_FILE,'w') as fd:
-        json.dump(DEFAULT_MOVEMENT_KEYBINDS,
-                  fd,
-                  sort_keys=True,
-                  indent=4)
-    print(f'Keybinds file created at {MOVEMENT_KEYBINDS_FILE}')
+    for fpath, prefs in zip(ALL_PREF_FILES, ALL_PREFS):
+        with open(fpath,'w') as fd:
+            json.dump(prefs,
+                      fd,
+                      sort_keys=True,
+                      indent=4)
+        print(f'Preferences file created at {fpath}')
 
 def __load_prefs():
     with open(PREFS_FILE,'r') as fd:
@@ -74,12 +83,18 @@ def __load_prefs():
             prefs[k] = DEFAULT_PREFERENCES[k]
 
     with open(MOVEMENT_KEYBINDS_FILE,'r') as fd:
-        keybinds = json.load(fd)
+        movement_keybinds = json.load(fd)
     for k in DEFAULT_MOVEMENT_KEYBINDS:
         if k not in prefs.keys():
-            prefs[k] = DEFAULT_MOVEMENT_KEYBINDS[k]
+            movement_keybinds[k] = DEFAULT_MOVEMENT_KEYBINDS[k]
 
-    return prefs, keybinds
+    with open(STATIC_KEYBINDS_FILE,'r') as fd:
+        static_keybinds = json.load(fd)
+    for k in DEFAULT_STATIC_KEYBINDS:
+        if k not in prefs.keys():
+            static_keybinds[k] = DEFAULT_STATIC_KEYBINDS[k]
+
+    return prefs, movement_keybinds, static_keybinds
 
 def list_experiments():
     raise NotImplementedError
@@ -112,4 +127,4 @@ def load_structure_mesh(atlaspath,structures,acronym):
 if not PREFS_FILE.exists():
     __setup_prefs()
 
-preferences, movement_keybinds = __load_prefs()
+preferences, movement_keybinds, static_keybinds = __load_prefs()

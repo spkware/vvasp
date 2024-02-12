@@ -1,3 +1,4 @@
+from matplotlib.artist import get
 from .utils import *
 from .probe import *
 from . import io
@@ -154,9 +155,16 @@ class VVASP(QMainWindow):
         self.bottom_horizontal_widgets.addWidget(self.probe_position_box)
     
     def _init_keyboard_shortcuts(self):
+        # initialize dynamic shortcuts, these change when a new probe is selected
         self.dynamic_shortcuts = {QShortcut(QKeySequence(keypress), self): [action, multiplier] \
             for keypress, (action, multiplier) in io.movement_keybinds.items()}
-        #TODO: initialize static shortcuts
+        # TODO: initialize and connect the static shortcuts
+        for keypress,action in io.static_keybinds.items():
+            shortcut = QShortcut(QKeySequence(keypress), self)
+            if hasattr(self, action) and callable(getattr(self, action)):
+                shortcut.activated.connect(eval(f'self.{action}'))
+            else:
+                print(f'No callable function {action} found for keypress {keypress}',flush=True)
           
 
     def _update_shortcut_actions(self): # rebind the actions when a new probe is active
@@ -169,7 +177,6 @@ class VVASP(QMainWindow):
                 self._update_probe_position_text() # update the text box with the new position
             func = lambda d=direction,m=multiplier:_shortcut_handler_function(d,m)
             shortcut.activated.connect(func)
-    
 
     def _init_atlas_view_box(self):
         self.atlas_view_box = QGroupBox(f'Atlas View: {io.preferences["atlas"]}')
@@ -194,16 +201,22 @@ class VVASP(QMainWindow):
         context = QMenu(self)
         for p in VAILD_PROBETYPES.keys():
             action = QAction(f'Add object: {p}', self)
-            action.triggered.connect(lambda checked, probe_type=p: self.render_new_probe_meshes(probe_type))
+            action.triggered.connect(lambda checked, probe_type=p: self.new_probe(probe_type))
             context.addAction(action)
         context.exec(e.globalPos())
     
-    def render_new_probe_meshes(self, probe_type):
+    def new_probe(self, probe_type):
         zero_position = [[0,0,0], [90,0,0]]
         new_p = Probe(self.plotter, probe_type, *zero_position) # the probe object will handle rendering here
         self.probes.append(new_p)
         active_probe = len(self.probes) - 1
         self.update_active_probe(active_probe)
+    
+    def next_probe(self):
+        self.update_active_probe((self.active_probe + 1) % len(self.probes))
+    
+    def previous_probe(self):
+        self.update_active_probe((self.active_probe - 1) % len(self.probes))
     
     def update_active_probe(self, active_probe):
         self.active_probe = active_probe
