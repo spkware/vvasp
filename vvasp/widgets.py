@@ -219,7 +219,7 @@ class VVASP(QMainWindow):
             context.addAction(action)
         context.exec(e.globalPos())
     
-    def render_new_probe_meshes(self, probe_type): #TODO: move this over to probe.py like i did for the atlas
+    def render_new_probe_meshes(self, probe_type):
         zero_position = [[0,0,0], [90,0,0]]
         new_p = Probe(self.plotter, probe_type, *zero_position) # the probe object will handle rendering here
         self.probes.append(new_p)
