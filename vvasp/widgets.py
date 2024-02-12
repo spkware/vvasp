@@ -154,34 +154,13 @@ class VVASP(QMainWindow):
         self.bottom_horizontal_widgets.addWidget(self.probe_position_box)
     
     def _init_keyboard_shortcuts(self):
-        self.shortcuts = {
-             QShortcut(QKeySequence('a'), self): ['left', 1000], #TODO: move these to preferences.json?
-             QShortcut(QKeySequence('d'), self): ['right', 1000],
-             QShortcut(QKeySequence('f'), self): ['dorsal', 1000],
-             QShortcut(QKeySequence('c'), self): ['ventral', 1000],
-             QShortcut(QKeySequence('w'), self): ['anterior', 1000],
-             QShortcut(QKeySequence('s'), self): ['posterior', 1000],
-
-             QShortcut(QKeySequence('Ctrl+a'), self): ['left', 100], #TODO: move these to preferences.json?
-             QShortcut(QKeySequence('Ctrl+d'), self): ['right', 100],
-             QShortcut(QKeySequence('Ctrl+f'), self): ['dorsal', 100],
-             QShortcut(QKeySequence('Ctrl+c'), self): ['ventral', 100],
-             QShortcut(QKeySequence('Ctrl+w'), self): ['anterior', 100],
-             QShortcut(QKeySequence('Ctrl+s'), self): ['posterior', 100],
-
-             QShortcut(QKeySequence('Shift+a'), self): ['rotate left', 5], #TODO: move these to preferences.json?
-             QShortcut(QKeySequence('Shift+d'), self): ['rotate right', 5],
-             QShortcut(QKeySequence('Shift+w'), self): ['tilt down', 5],
-             QShortcut(QKeySequence('Shift+s'), self): ['tilt up', 5],
-             QShortcut(QKeySequence('q'), self): ['spin left', 5],
-             QShortcut(QKeySequence('e'), self): ['spin right', 5],
-
-             QShortcut(QKeySequence('Shift+f'), self): ['retract', 1000],
-             QShortcut(QKeySequence('Shift+c'), self): ['advance', 1000],
-        }
+        self.dynamic_shortcuts = {QShortcut(QKeySequence(keypress), self): [action, multiplier] \
+            for keypress, (action, multiplier) in io.movement_keybinds.items()}
+        #TODO: initialize static shortcuts
+          
 
     def _update_shortcut_actions(self): # rebind the actions when a new probe is active
-        for shortcut, (direction,multiplier) in self.shortcuts.items():
+        for shortcut, (direction,multiplier) in self.dynamic_shortcuts.items():
             if len(self.probes) > 1: #handle case where no probe is active yet
                 shortcut.activated.disconnect()
 
@@ -243,8 +222,8 @@ class VVASP(QMainWindow):
         self.yline.setText(str(prb.origin[0])) 
         self.zline.setText(str(prb.origin[2]))
         self.xangline.setText(str(prb.angles[0])) 
-        self.yangline.setText(str(prb.angles[1])) 
-        self.zangline.setText(str(prb.angles[2]))
+        self.yangline.setText(str(prb.angles[2])) 
+        self.zangline.setText(str(prb.angles[1]))
 
     def closeEvent(self,event):
         self.plotter.close()
