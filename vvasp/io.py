@@ -17,29 +17,40 @@ DEFAULT_PREFERENCES = {'atlas':'allen_mouse_25um_v1.2',
                        'warn_overwrite':True,
                        'warn_delete':True,}
 
-DEFAULT_MOVEMENT_KEYBINDS = {'a': ['left', 1000],
-                             'd': ['right', 1000],
-                             'f': ['dorsal', 1000],
-                             'c': ['ventral', 1000],
-                             'w': ['anterior', 1000],
-                             's': ['posterior', 1000],
+DEFAULT_MOVEMENT_KEYBINDS = {'a': ['left', 100],
+                             'd': ['right', 100],
+                             'f': ['dorsal', 100],
+                             'c': ['ventral', 100],
+                             'w': ['anterior', 100],
+                             's': ['posterior', 100],
          
-                             'Ctrl+a': ['left', 100],
-                             'Ctrl+d': ['right', 100],
-                             'Ctrl+f': ['dorsal', 100],
-                             'Ctrl+c': ['ventral', 100],
-                             'Ctrl+w': ['anterior', 100],
-                             'Ctrl+s': ['posterior', 100],
+                             'Ctrl+a': ['left', 10],
+                             'Ctrl+d': ['right', 10],
+                             'Ctrl+f': ['dorsal', 10],
+                             'Ctrl+c': ['ventral', 10],
+                             'Ctrl+w': ['anterior', 10],
+                             'Ctrl+s': ['posterior', 10],
          
                              'Shift+a': ['rotate left', 5],
                              'Shift+d': ['rotate right', 5],
                              'Shift+w': ['tilt down', 5],
                              'Shift+s': ['tilt up', 5],
+
+                             'Ctrl+Shift+a': ['rotate left', 1],
+                             'Ctrl+Shift+d': ['rotate right', 1],
+                             'Ctrl+Shift+w': ['tilt down', 1],
+                             'Ctrl+Shift+s': ['tilt up', 1],
+                             
                              'q': ['spin left', 5],
                              'e': ['spin right', 5],
+
+                             'Ctrl+q': ['spin left', 1],
+                             'Ctrl+e': ['spin right', 1],
          
-                             'Shift+f': ['retract', 1000],
-                             'Shift+c': ['advance', 1000],}
+                             'Shift+f': ['retract', 100],
+                             'Shift+c': ['advance', 100],
+                             'Ctrl+Shift+f': ['retract', 10],
+                             'Ctrl+Shift+c': ['advance', 10],}
 
 DEFAULT_STATIC_KEYBINDS = {'Ctrl+o': 'open_experiment',
                            #'Ctrl+s': 'save',

@@ -11,7 +11,7 @@ VAILD_PROBETYPES = {'NP24':(-410,-160,90,340),
 ACTIVE_COLOR = '#FF0000'
 INACTIVE_COLOR = '#000000'
 class Shank:
-    SHANK_DIMS_UM = np.array([70,-10_000,20]) # the dimensions of the shank in um
+    SHANK_DIMS_UM = np.array([70,-10_000,0]) # the dimensions of the shank in um
     def __init__(self, vistaplotter, tip, angles, active=True):
         self.plotter = vistaplotter
         self.tip = tip # [ML,AP,DV], the corner of the shank, used for drawing the shank
@@ -63,12 +63,14 @@ class Probe:
         for shnk in self.shanks:
             #shnk.actor.prop.opacity = 1 #FIXME: opacity not working for some reason
             shnk.actor.prop.color = ACTIVE_COLOR
+            self.plotter.update()
 
     def make_inactive(self):
         self.active = False
         for shnk in self.shanks:
             #shnk.actor.prop.opacity = .2
             shnk.actor.prop.color = INACTIVE_COLOR
+            self.plotter.update()
 
     def __add_shanks(self):
         for offset in VAILD_PROBETYPES[self.probetype]:
@@ -143,10 +145,10 @@ class Probe:
 
     def __rotate(self, angle_shift):
         self.angles += angle_shift
-        self.shanks[0].angles += angle_shift #shanks.angles all point to the same memory location, so only need to modify one shank
         for shnk,offset in zip(self.shanks, VAILD_PROBETYPES[self.probetype]):
             tip = np.array([offset,0,0])
             shnk.tip = tip
+            #shnk.angles += angle_shift #Probe.shanks[:].angles all point to Probe.angles, so no need to modify the shank angles
             shnk.define_vectors_for_rectangle()
             shnk.shank_vectors += self.origin
             shnk.update_mesh()
