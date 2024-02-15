@@ -35,7 +35,7 @@ class Atlas:
         self.bregma_location = np.array(io.preferences['bregma_locations'][self.name])*metadata['resolution']
         self.metadata = metadata
 
-    def initialize(self, show_root=True):
+    def initialize(self, show_root=True, show_bregma=True):
         # TODO: load up meshes, rotate/translate them appropriately and compute the areas they occupy in space. 
         # Importantly, don't render them to the plotter yet, it will just bog it down.
         regions = list(self.structures.acronym.values)
@@ -65,7 +65,10 @@ class Atlas:
             self.root_actor = self.plotter.add_mesh(self.meshes['root'],
                                   color=self.meshcols['root'],
                                   opacity=0.08,
-                                  silhouette=False)
+                                  silhouette=False,
+                                  name='root')
+        if show_bregma:
+            self.bregma_actor = self.plotter.add_mesh(io.pv.Sphere(radius=100, center=(0,0,0)))
 
     def add_atlas_region_mesh(self, region_acronym):
         if region_acronym in self.visible_region_actors.keys():
@@ -104,5 +107,6 @@ class Atlas:
         for region in temp:
             self.remove_atlas_region_mesh(region)
         self.plotter.remove_actor(self.root_actor)
+        self.plotter.remove_actor(self.bregma_actor)
         self.plotter.update()
         
