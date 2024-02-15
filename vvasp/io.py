@@ -122,6 +122,9 @@ def save_experiment(probes, atlas, filepath):
     with open(Path(filepath),'w') as fd:
         json.dump(experiment_data, fd, sort_keys=False, indent=4)
 
+def export_experiment(probes, atlas, filepath):
+    raise NotImplementedError()
+
 
 def load_experiment_file(filepath):
     with open(str(filepath),'r') as fd:

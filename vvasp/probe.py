@@ -89,7 +89,9 @@ class Probe:
         return dict(probetype=self.probetype,
                     origin=self.origin.tolist(),
                     angles=self.angles.tolist(),
-                    active=self.active)
+                    active=self.active,
+                    entrypoint=self.entry_point.tolist(),
+                    depth_along_probe_axis=self.depth)
     
     def __ray_trace_intersection(self):
         init_vector = (self.rotation_matrix @ INIT_VEC)

@@ -109,6 +109,7 @@ class VVASP(QMainWindow):
         self.fileMenu.addAction('Load experiment', self._load_experiment)
         self.fileMenu.addAction('Save experiment',self._save_experiment)
         self.fileMenu.addAction('Save experiment as',self._save_experiment_as)
+        self.fileMenu.addAction('Export experiment as',self._export_experiment_as)
         self.fileMenu.addAction('Quit',self.close)
         self.probeMenu = self.menubar.addMenu('Probe')
         for p in VAILD_PROBETYPES:
@@ -233,6 +234,12 @@ class VVASP(QMainWindow):
         if filename: # handle the case where the user cancels the save dialog
             self.filename = filename
             io.save_experiment(self.probes, self.atlas, io.EXPERIMENT_DIR / self.filename)
+    
+    def _export_experiment_as(self):
+        filename = QFileDialog.getSaveFileName(self, 'Save file', str(io.EXPERIMENT_DIR), filter='*.txt')[0]
+        if filename: # handle the case where the user cancels the save dialog
+            self.filename = filename
+            io.export_experiment(self.probes, self.atlas, io.EXPERIMENT_DIR / self.filename)
      
     def contextMenuEvent(self, e):
         context = QMenu(self)
