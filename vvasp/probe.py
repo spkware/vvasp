@@ -55,6 +55,7 @@ class Probe:
             self.ray_trace_insertion = False #if no atlas mesh is passed, we cant ray trace the insertion
         else:
             self.ray_trace_insertion = ray_trace_insertion
+        
         self.plotter = vistaplotter
         self.probetype = probetype
         self.active = active
@@ -67,16 +68,21 @@ class Probe:
         self.shanks = []
         self.intersection_vector = None # an imaginary line from shank origin, used for calculating the intersection with brain surface
         self.__add_shanks()
-        self.atlas_root_mesh = atlas_root_mesh.triangulate()
+        self.atlas_root_mesh = atlas_root_mesh
         self.entry_point = None
-        if atlas_root_mesh is not None and self.ray_trace_insertion: #if passing an atlas mesh, ray trace the intersection with the brain surface
-            self.surface_entry_mesh = pv.Sphere(center=self.origin.astype(np.float32), radius=SPHERE_RADIUS)
-            self.plotter.add_mesh(self.surface_entry_mesh, color='blue', name='surface_entry')
+
+        self.ball_mesh = pv.Sphere(center=self.origin.astype(np.float32), radius=SPHERE_RADIUS)
+        self.ball_actor = self.plotter.add_mesh(self.ball_mesh, color='blue')
+        
         self.__move(np.array([0,0,0])) # just use this to update the mesh location
         if active:
             self.make_active()
         else:
             self.make_inactive()
+
+    @property
+    def depth(self):
+        return np.linalg.norm(self.origin - self.entry_point)
 
     @property
     def probe_properties(self):
@@ -93,14 +99,14 @@ class Probe:
         points = self.atlas_root_mesh.ray_trace(start, end)[0]
 
         if points.shape[0] == 1:
-            self.entry_point = points
-            self.surface_entry_mesh.shallow_copy(pv.Sphere(center=points, radius=SPHERE_RADIUS))
+            self.entry_point = points[0,:].flatten()
+            self.ball_mesh.shallow_copy(pv.Sphere(center=points, radius=SPHERE_RADIUS))
         elif points.shape[0] > 1: #pick the point with the highest z value if there are multiple
-            self.entry_point = points[np.argmax(points[:,2])]
-            self.surface_entry_mesh.shallow_copy(pv.Sphere(center=self.entry_point, radius=SPHERE_RADIUS))
+            self.entry_point = points[np.argmax(points[:,2]),:].flatten()
+            self.ball_mesh.shallow_copy(pv.Sphere(center=self.entry_point, radius=SPHERE_RADIUS))
         else:
             self.entry_point = None
-            self.surface_entry_mesh.shallow_copy(pv.Sphere(self.origin, radius=SPHERE_RADIUS))
+            self.ball_mesh.shallow_copy(pv.Sphere(center=self.origin, radius=SPHERE_RADIUS))
 
     def make_active(self):
         self.active = True
@@ -192,6 +198,8 @@ class Probe:
             shnk.update_mesh()
             if self.atlas_root_mesh is not None and self.ray_trace_insertion:
                 self.__ray_trace_intersection()
+            else:
+                self.ball_mesh.shallow_copy(pv.Sphere(center=self.origin, radius=SPHERE_RADIUS))
 
     def __rotate(self, angle_shift):
         self.angles += angle_shift
@@ -206,9 +214,11 @@ class Probe:
         self.rotation_matrix = rotation_matrix_from_degrees(*self.angles)
         if self.atlas_root_mesh is not None and self.ray_trace_insertion:
             self.__ray_trace_intersection()
+        else:
+            self.ball_mesh.shallow_copy(pv.Sphere(center=self.origin, radius=SPHERE_RADIUS))
     
     def __del__(self):
         for shnk in self.shanks:
             self.plotter.remove_actor(shnk.actor)
-        self.plotter.remove_actor(self.plotter.actors['surface_entry'])
+        self.plotter.remove_actor(self.ball_actor)
         self.plotter.update()

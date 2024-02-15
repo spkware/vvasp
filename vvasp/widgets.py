@@ -135,6 +135,9 @@ class VVASP(QMainWindow):
         self.xyz_fields.addWidget(QLabel(xyzlabels[2]))
         self.zline = QLineEdit()
         self.xyz_fields.addWidget(self.zline)
+        self.xyz_fields.addWidget(QLabel(xyzlabels[3]))
+        self.depthline = QLineEdit()
+        self.xyz_fields.addWidget(self.depthline)
         vbox.addLayout(self.xyz_fields)
 
         self.angle_fields = QHBoxLayout()
@@ -254,7 +257,6 @@ class VVASP(QMainWindow):
     
     def update_active_probe(self, active_probe):
         self.active_probe = active_probe
-        print(f'active probe: {self.active_probe}',flush=True)
         for (i,prb) in enumerate(self.probes):
             if self.active_probe == i:
                 prb.make_active() #this recolors the mesh
@@ -265,9 +267,24 @@ class VVASP(QMainWindow):
     
     def _update_probe_position_text(self):
         prb = self.probes[self.active_probe]
-        self.xline.setText(str(prb.origin[1])) 
-        self.yline.setText(str(prb.origin[0])) 
-        self.zline.setText(str(prb.origin[2]))
+        self.show_entrypoint=True #FIXME: this is a hack to show the entrypoint for the time being
+        if self.show_entrypoint:
+            if prb.entry_point is not None:
+                self.xline.setText(str(int(prb.entry_point[1]))) 
+                self.yline.setText(str(int(prb.entry_point[0]))) 
+                self.zline.setText(str(int(prb.entry_point[2])))
+                self.depthline.setText(str(int(prb.depth)))
+            else:
+                self.xline.setText('None') 
+                self.yline.setText('None')
+                self.zline.setText('None')
+                self.depthline.setText('None')
+        else:
+            self.xline.setText(str(prb.origin[1])) 
+            self.yline.setText(str(prb.origin[0])) 
+            self.zline.setText(str(prb.origin[2]))
+            self.depthline.setText(str(int(prb.depth)))
+
         self.xangline.setText(str(prb.angles[0])) 
         self.yangline.setText(str(prb.angles[2])) 
         self.zangline.setText(str(prb.angles[1]))

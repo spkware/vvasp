@@ -77,7 +77,7 @@ class Atlas:
                               color=self.meshcols[region_acronym],
                               opacity = 0.7,
                               render=False,
-                              silhouette=dict(color='#000000',line_width=1))
+                              silhouette=False)
         self.visible_region_actors.update({region_acronym: actor})
     
     def remove_atlas_region_mesh(self, region_acronym):
