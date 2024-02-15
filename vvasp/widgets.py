@@ -1,3 +1,4 @@
+from fileinput import filename
 from matplotlib.artist import get
 from .utils import *
 from .probe import *
@@ -72,9 +73,14 @@ class VVASP(QMainWindow):
         
         self.vistaframe.setLayout(self.vlayout)
         self.setCentralWidget(self.vistaframe)
-        self.atlas = atlas_utils.Atlas(self.plotter, atlas_name) #load the desired atlas
-        self.atlas.initialize() #add all meshes, but don't render them yet
-        self.atlas.add_atlas_region_mesh('CP') #TODO: this is just a placeholder for how we would call this later
+
+        if filename is not None:
+            raise NotImplementedError('Loading experiments via CLI args not yet implemented')
+            self._load_experiment(filename)
+        else:
+            self.atlas = atlas_utils.Atlas(self.plotter)
+            self.atlas.add_atlas_region_mesh('CP') #TODO: this is just a placeholder for how we would call this later
+
 
         self.plotter.track_click_position(
             callback=lambda x: print(x,flush=True),
@@ -167,11 +173,15 @@ class VVASP(QMainWindow):
                 print(f'No callable function {action} found for keypress {keypress}',flush=True)
           
 
-    def _update_shortcut_actions(self): # rebind the actions when a new probe is active
-        for shortcut, (direction,multiplier) in self.dynamic_shortcuts.items():
-            if len(self.probes) > 1: #handle case where no probe is active yet
+    def _disconnect_shortcuts(self):
+        if len(self.probes) > 1: #handle case where no probe is active yet
+            for shortcut in self.dynamic_shortcuts.keys():
                 shortcut.activated.disconnect()
 
+    def _update_shortcut_actions(self, disconnect_existing=True): # rebind the actions when a new probe is active
+        if disconnect_existing: #handle case where no probe is active yet
+            self._disconnect_shortcuts()
+        for shortcut, (direction,multiplier) in self.dynamic_shortcuts.items():
             def _shortcut_handler_function(d=direction, m=multiplier):
                 self.probes[self.active_probe].move(d, m) # connect the function to move the probe
                 self._update_probe_position_text() # update the text box with the new position
@@ -184,18 +194,37 @@ class VVASP(QMainWindow):
         self.bottom_horizontal_widgets.addWidget(self.atlas_view_box)
 
 
-    def _load_experiment(self):
-        self.fname = QFileDialog.getOpenFileName(self, 'Open file', str(io.EXPERIMENT_DIR), filter='*.json')[0]
-        #TODO: load the file and probes from io module
+    def _load_experiment(self, filename=None):
+        if filename is None:
+            self.filename = QFileDialog.getOpenFileName(self, 'Open file', str(io.EXPERIMENT_DIR), filter='*.json')[0]
+        else:
+            self.filename = filename
+        experiment_data = io.load_experiment_file(self.filename)
+        self.atlas = atlas_utils.Atlas(self.plotter, atlas_name=experiment_data['atlas']['name'])
+        for r in experiment_data['atlas']['visible_regions']:
+            self.atlas.add_atlas_region_mesh(r)
+
+        self._disconnect_shortcuts()
+        self.probes = []
+        for i,p in enumerate(experiment_data['probes']):
+            self.probes.append(Probe(self.plotter, p['probetype'], p['origin'], p['angles'], p['active'])) # FIXME: probes not going to the right location
+            if p['active']:
+                self.active_probe = i
+        self._update_probe_position_text()
+        self._update_shortcut_actions(disconnect_existing=False)
+        self.plotter.update()
     
     def _save_experiment(self):
-        raise NotImplementedError()
+        if self.filename is None:
+            self._save_experiment_as()
+        else:
+            io.save_experiment(self.probes, self.atlas, io.EXPERIMENT_DIR / self.filename)
     
     def _save_experiment_as(self):
-        savename = QFileDialog.getSaveFileName(self, 'Save file', str(io.EXPERIMENT_DIR), filter='*.json')[0]
-        self.fname = savename
-        print(savename)
-        #TODO: save the file JSON in io module
+        filename = QFileDialog.getSaveFileName(self, 'Save file', str(io.EXPERIMENT_DIR), filter='*.json')[0]
+        if filename: # handle the case where the user cancels the save dialog
+            self.filename = filename
+            io.save_experiment(self.probes, self.atlas, io.EXPERIMENT_DIR / self.filename)
      
     def contextMenuEvent(self, e):
         context = QMenu(self)
@@ -206,7 +235,7 @@ class VVASP(QMainWindow):
         context.exec(e.globalPos())
     
     def new_probe(self, probe_type):
-        zero_position = [[0,0,0], [90,0,0]]
+        zero_position = [[0,0,0], [-90,0,0]]
         new_p = Probe(self.plotter, probe_type, *zero_position) # the probe object will handle rendering here
         self.probes.append(new_p)
         active_probe = len(self.probes) - 1

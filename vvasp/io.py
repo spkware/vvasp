@@ -1,4 +1,6 @@
 from tkinter import W
+
+from vvasp import probe
 from .utils import *
 
 PREFS_FILE = Path('~').expanduser() / 'vvasp' / 'preferences.json'
@@ -114,14 +116,17 @@ def list_experiments():
 def update_prefs():
     raise NotImplementedError
 
-def save_experiment():
-    raise NotImplementedError
+def save_experiment(probes, atlas, filepath):
+    experiment_data = dict(probes = [probe.probe_properties for probe in probes],
+                           atlas = atlas.atlas_properties)
+    with open(Path(filepath),'w') as fd:
+        json.dump(experiment_data, fd, sort_keys=False, indent=4)
 
-def save_experiment_as():
-    raise NotImplementedError
 
-def load_experiment():
-    raise NotImplementedError
+def load_experiment_file(filepath):
+    with open(str(filepath),'r') as fd:
+        experiment_data = json.load(fd)
+    return experiment_data
 
 def load_structure_mesh(atlaspath,structures,acronym):
     # meshes are in um

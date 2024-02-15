@@ -10,13 +10,13 @@ class Atlas:
             atlas_name = io.preferences['atlas']
         self.name = atlas_name
         self.plotter = vistaplotter
-        self.visible_regions = []
+        self.visible_region_actors = {}
         self.meshes = {}
         self.meshcols = {}
         self.fetch_atlas()
         self.load_atlas()
-
-
+        self.initialize()
+        
     def fetch_atlas(self):
         #download the atlas if not present
         pass
@@ -35,7 +35,7 @@ class Atlas:
         self.bregma_location = np.array(io.preferences['bregma_locations'][self.name])*metadata['resolution']
         self.metadata = metadata
 
-    def initialize(self):
+    def initialize(self, show_root=True):
         # TODO: load up meshes, rotate/translate them appropriately and compute the areas they occupy in space. 
         # Importantly, don't render them to the plotter yet, it will just bog it down.
         regions = list(self.structures.acronym.values)
@@ -61,35 +61,48 @@ class Atlas:
             self.meshcols[r] = s[1]['rgb_triplet']
         assert len(self.meshes) == len(self.structures)
 
-        self.plotter.add_mesh(self.meshes['root'],
-                              color=self.meshcols['root'],
-                              opacity=0.08,
-                              silhouette=False)
+        if show_root:
+            self.root_actor = self.plotter.add_mesh(self.meshes['root'],
+                                  color=self.meshcols['root'],
+                                  opacity=0.08,
+                                  silhouette=False)
 
     def add_atlas_region_mesh(self, region_acronym):
-        if region_acronym in self.visible_regions:
+        if region_acronym in self.visible_region_actors.keys():
             return #don't replot the same region
-        self.plotter.add_mesh(self.meshes[region_acronym], #make bregma the origin
+        actor = self.plotter.add_mesh(self.meshes[region_acronym], #make bregma the origin
                               color=self.meshcols[region_acronym],
                               opacity = 0.7,
                               render=False,
                               silhouette=dict(color='#000000',line_width=1))
-        self.visible_regions.append(region_acronym)
+        self.visible_region_actors.update({region_acronym: actor})
     
     def remove_atlas_region_mesh(self, region_acronym):
-        if region_acronym in self.visible_regions:
-            self.plotter.remove_actor(self.visible_regions[region_acronym]) #FIXME: my guess is that this line won't work
-            self.visible_regions.remove(region_acronym)
+        if region_acronym in self.visible_region_actors.keys():
+            self.plotter.remove_actor(self.visible_region_actors[region_acronym])
+            self.visible_region_actors.pop(region_acronym)
         else:
             print(f'No region {region_acronym} to remove')
     
     def clear_atlas(self):
-        for region in self.visible_regions:
+        for region in self.visible_region_actors:
             self.remove_atlas_region_mesh(region)
-        self.visible_regions = []
+        self.visible_region_actors = {}
 
     def map_location_to_atlas_region(self, locations):
         # map an array of locations to the atlas regions they lie within
         # can pass the points coming from the probe origin here, can also find ones passing through root to compute the 
         # position where the probe exits the skull
         raise NotImplementedError()
+
+    @property
+    def atlas_properties(self):
+        return dict(name=self.name, visible_regions=list(self.visible_region_actors.keys()))
+
+    def __del__(self):
+        temp = list(self.visible_region_actors.keys())
+        for region in temp:
+            self.remove_atlas_region_mesh(region)
+        self.plotter.remove_actor(self.root_actor)
+        self.plotter.update()
+        

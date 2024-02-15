@@ -52,11 +52,25 @@ class Probe:
         self.active = active
         self.origin = np.array(origin) # the "true center" of the probe tip, [ML,AP,DV]
         angles = np.array(angles)
-        angles[2] = -angles[2] # rotation about z is inverted for probes
-        angles[0] = -angles[0] # rotation about x is inverted for probes
+        #angles[2] = -angles[2] # rotation about z is inverted for probes
+        #angles[0] = -angles[0] # rotation about x is inverted for probes
         self.angles = angles
         self.shanks = []
         self.__add_shanks()
+        self.__move(np.array([0,0,0])) # just use this to update the meshes
+            
+        if active:
+            self.make_active()
+        else:
+            self.make_inactive()
+
+    @property
+    def probe_properties(self):
+        return dict(probetype=self.probetype,
+                    origin=self.origin.tolist(),
+                    angles=self.angles.tolist(),
+                    active=self.active)
+
 
     def make_active(self):
         self.active = True
@@ -139,8 +153,12 @@ class Probe:
 
     def __move(self, position_shift):     
         self.origin += position_shift
-        for shnk in self.shanks:
-            shnk.shank_vectors += position_shift
+        for shnk,offset in zip(self.shanks, VAILD_PROBETYPES[self.probetype]):
+            tip = np.array([offset,0,0])
+            shnk.tip = tip
+            #shnk.angles += angle_shift #Probe.shanks[:].angles all point to Probe.angles, so no need to modify the shank angles
+            shnk.define_vectors_for_rectangle()
+            shnk.shank_vectors += self.origin
             shnk.update_mesh()
 
     def __rotate(self, angle_shift):
@@ -152,3 +170,8 @@ class Probe:
             shnk.define_vectors_for_rectangle()
             shnk.shank_vectors += self.origin
             shnk.update_mesh()
+    
+    def __del__(self):
+        for shnk in self.shanks:
+            self.plotter.remove_actor(shnk.actor)
+        self.plotter.update()
