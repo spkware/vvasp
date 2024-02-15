@@ -80,6 +80,10 @@ class VVASP(QMainWindow):
         else:
             self.atlas = atlas_utils.Atlas(self.plotter)
             self.atlas.add_atlas_region_mesh('CP') #TODO: this is just a placeholder for how we would call this later
+            self.atlas.add_atlas_region_mesh('MOp')
+            self.atlas.add_atlas_region_mesh('ACA')
+            self.atlas.add_atlas_region_mesh('VISp')
+            self.atlas.add_atlas_region_mesh('VISam')
 
 
         self.plotter.track_click_position(
@@ -110,12 +114,8 @@ class VVASP(QMainWindow):
         for p in VAILD_PROBETYPES:
             self.probeMenu.addAction(f'Add Probe: {p}', lambda probe_type=p: self.render_new_probe_meshes(probe_type))
         #self.probeMenu.addAction('Remove Active Probe',self.probes[self.active_probe].remove_probe)
-        #self.probeMenu.addAction('Next Probe',self.next_probe)
-        #self.probeMenu.addAction('Previous Probe',self.previous_probe)
-        #self.probeMenu.addAction('Add Shank',self.add_shank)
-        #self.probeMenu.addAction('Remove Shank',self.remove_shank)
-        #self.probeMenu.addAction('Next Shank',self.next_shank)
-        #self.probeMenu.addAction('Previous Shank',self.previous_shank)
+        self.probeMenu.addAction('Next Probe',self.next_probe)
+        self.probeMenu.addAction('Previous Probe',self.previous_probe)
         self.probeMenu
     
     def _init_probe_position_box(self):
@@ -207,7 +207,12 @@ class VVASP(QMainWindow):
         self._disconnect_shortcuts()
         self.probes = []
         for i,p in enumerate(experiment_data['probes']):
-            self.probes.append(Probe(self.plotter, p['probetype'], p['origin'], p['angles'], p['active'])) # FIXME: probes not going to the right location
+            self.probes.append(Probe(self.plotter,
+                                     p['probetype'],
+                                     p['origin'],
+                                     p['angles'],
+                                     p['active'],
+                                     atlas_root_mesh=self.atlas.meshes['root']))
             if p['active']:
                 self.active_probe = i
         self._update_probe_position_text()
@@ -236,7 +241,7 @@ class VVASP(QMainWindow):
     
     def new_probe(self, probe_type):
         zero_position = [[0,0,0], [-90,0,0]]
-        new_p = Probe(self.plotter, probe_type, *zero_position) # the probe object will handle rendering here
+        new_p = Probe(self.plotter, probe_type, *zero_position, atlas_root_mesh=self.atlas.meshes['root']) # the probe object will handle rendering here
         self.probes.append(new_p)
         active_probe = len(self.probes) - 1
         self.update_active_probe(active_probe)

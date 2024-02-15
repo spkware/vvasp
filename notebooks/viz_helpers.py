@@ -25,7 +25,7 @@ def rotation_matrix_from_degrees(x_rot, y_rot, z_rot):
 
 
 class Shank:
-    SHANK_DIMS_UM = np.array([70,-10_000,10]) # the dimensions of the shank in um
+    SHANK_DIMS_UM = np.array([70,-10_000,0]) # the dimensions of the shank in um
     def __init__(self, tip, angles):
         self.tip = tip # [ML,AP,DV], the corner of the shank, used for drawing the shank
         self.angles = angles # [elev, spin, yaw], the angles of the shank in degrees

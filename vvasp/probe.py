@@ -8,10 +8,14 @@ Max Melin, 2024
 VAILD_PROBETYPES = {'NP24':(-410,-160,90,340),
                     'NP1(3B)':(-35,)} # the valid probetypes and a tuple with the shank offsets from the origin
 
+SHANK_DIMS_UM = np.array([70,-10_000,0]) # the dimensions of the shank in um
+INIT_VEC = np.array([0,SHANK_DIMS_UM[1],0])
+SPHERE_RADIUS = 50
+
 ACTIVE_COLOR = '#FF0000'
 INACTIVE_COLOR = '#000000'
+
 class Shank:
-    SHANK_DIMS_UM = np.array([70,-10_000,0]) # the dimensions of the shank in um
     def __init__(self, vistaplotter, tip, angles, active=True):
         self.plotter = vistaplotter
         self.tip = tip # [ML,AP,DV], the corner of the shank, used for drawing the shank
@@ -22,9 +26,9 @@ class Shank:
         self.plot_new_shank_mesh()
 
     def define_vectors_for_rectangle(self):
-        shank_vectors = np.array([[Shank.SHANK_DIMS_UM[0],Shank.SHANK_DIMS_UM[1],0], #the orthogonal set of vectors used to define a rectangle, these will be translated and rotated about the tip
-                                  [Shank.SHANK_DIMS_UM[0],0,0],
-                                  [0,0,Shank.SHANK_DIMS_UM[2]]]).T
+        shank_vectors = np.array([[SHANK_DIMS_UM[0],SHANK_DIMS_UM[1],0], #the orthogonal set of vectors used to define a rectangle, these will be translated and rotated about the tip
+                                  [SHANK_DIMS_UM[0],0,0],
+                                  [0,0,SHANK_DIMS_UM[2]]]).T
         rotation_matrix = rotation_matrix_from_degrees(*self.angles)
         self.tip = (rotation_matrix @ self.tip) #rotate the tip of the shanks
         shank_vectors =  (rotation_matrix @ shank_vectors).T #rotate the shank vectors by probe angles
@@ -45,8 +49,12 @@ class Shank:
         self.actor = self.plotter.add_mesh(self.mesh,color=ACTIVE_COLOR ,opacity = 1,line_width=3)
 
 class Probe:
-    def __init__(self, vistaplotter, probetype, origin, angles, active=True):
+    def __init__(self, vistaplotter, probetype, origin, angles, active=True, ray_trace_insertion=True, atlas_root_mesh=None):
         assert probetype in VAILD_PROBETYPES.keys(), f'Invalid probetype: {probetype}'
+        if ray_trace_insertion and atlas_root_mesh is None:
+            self.ray_trace_insertion = False #if no atlas mesh is passed, we cant ray trace the insertion
+        else:
+            self.ray_trace_insertion = ray_trace_insertion
         self.plotter = vistaplotter
         self.probetype = probetype
         self.active = active
@@ -55,10 +63,16 @@ class Probe:
         #angles[2] = -angles[2] # rotation about z is inverted for probes
         #angles[0] = -angles[0] # rotation about x is inverted for probes
         self.angles = angles
+        self.rotation_matrix = rotation_matrix_from_degrees(*self.angles)
         self.shanks = []
+        self.intersection_vector = None # an imaginary line from shank origin, used for calculating the intersection with brain surface
         self.__add_shanks()
-        self.__move(np.array([0,0,0])) # just use this to update the meshes
-            
+        self.atlas_root_mesh = atlas_root_mesh.triangulate()
+        self.entry_point = None
+        if atlas_root_mesh is not None and self.ray_trace_insertion: #if passing an atlas mesh, ray trace the intersection with the brain surface
+            self.surface_entry_mesh = pv.Sphere(center=self.origin.astype(np.float32), radius=SPHERE_RADIUS)
+            self.plotter.add_mesh(self.surface_entry_mesh, color='blue', name='surface_entry')
+        self.__move(np.array([0,0,0])) # just use this to update the mesh location
         if active:
             self.make_active()
         else:
@@ -70,7 +84,23 @@ class Probe:
                     origin=self.origin.tolist(),
                     angles=self.angles.tolist(),
                     active=self.active)
+    
+    def __ray_trace_intersection(self):
+        init_vector = (self.rotation_matrix @ INIT_VEC)
+        self.intersection_vector = init_vector + self.origin
+        start = self.origin.astype(np.float32)
+        end = self.intersection_vector.astype(np.float32)
+        points = self.atlas_root_mesh.ray_trace(start, end)[0]
 
+        if points.shape[0] == 1:
+            self.entry_point = points
+            self.surface_entry_mesh.shallow_copy(pv.Sphere(center=points, radius=SPHERE_RADIUS))
+        elif points.shape[0] > 1: #pick the point with the highest z value if there are multiple
+            self.entry_point = points[np.argmax(points[:,2])]
+            self.surface_entry_mesh.shallow_copy(pv.Sphere(center=self.entry_point, radius=SPHERE_RADIUS))
+        else:
+            self.entry_point = None
+            self.surface_entry_mesh.shallow_copy(pv.Sphere(self.origin, radius=SPHERE_RADIUS))
 
     def make_active(self):
         self.active = True
@@ -160,6 +190,8 @@ class Probe:
             shnk.define_vectors_for_rectangle()
             shnk.shank_vectors += self.origin
             shnk.update_mesh()
+            if self.atlas_root_mesh is not None and self.ray_trace_insertion:
+                self.__ray_trace_intersection()
 
     def __rotate(self, angle_shift):
         self.angles += angle_shift
@@ -170,8 +202,13 @@ class Probe:
             shnk.define_vectors_for_rectangle()
             shnk.shank_vectors += self.origin
             shnk.update_mesh()
+
+        self.rotation_matrix = rotation_matrix_from_degrees(*self.angles)
+        if self.atlas_root_mesh is not None and self.ray_trace_insertion:
+            self.__ray_trace_intersection()
     
     def __del__(self):
         for shnk in self.shanks:
             self.plotter.remove_actor(shnk.actor)
+        self.plotter.remove_actor(self.plotter.actors['surface_entry'])
         self.plotter.update()
