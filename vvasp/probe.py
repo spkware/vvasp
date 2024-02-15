@@ -82,15 +82,27 @@ class Probe:
 
     @property
     def depth(self):
-        return np.linalg.norm(self.origin - self.entry_point)
+        if self.entry_point is None:
+            return 0
+        else:
+            return np.linalg.norm(self.origin - self.entry_point)
 
     @property
     def probe_properties(self):
+        origin = self.origin.tolist()
+        angles = self.angles.tolist()
+        entry_point = self.entry_point.tolist() if self.entry_point is not None else [None,None,None]
         return dict(probetype=self.probetype,
-                    origin=self.origin.tolist(),
-                    angles=self.angles.tolist(),
                     active=self.active,
-                    entrypoint=self.entry_point.tolist(),
+                    tip=dict(AP=origin[1],
+                             ML=origin[0],
+                             DV=origin[2]),
+                    angles=dict(elevation=angles[0],
+                                azimuth=angles[2],
+                                spin=angles[1]),
+                    entrypoint=dict(AP=entry_point[1],
+                                    ML=entry_point[0],
+                                    DV=entry_point[2]),
                     depth_along_probe_axis=self.depth)
     
     def __ray_trace_intersection(self):

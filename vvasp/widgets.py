@@ -128,7 +128,8 @@ class VVASP(QMainWindow):
 
         self.xyz_fields = QHBoxLayout()
         self.xyz_fields.addWidget(QLabel(xyzlabels[0]))
-        self.xline = QLineEdit()
+        from PyQt5.QtWidgets import QDoubleSpinBox
+        self.xline = QDoubleSpinBox(minimum=-10000,maximum=10000,decimals=0, singleStep=1)
         self.xyz_fields.addWidget(self.xline)
         self.xyz_fields.addWidget(QLabel(xyzlabels[1]))
         self.yline = QLineEdit()
@@ -211,10 +212,12 @@ class VVASP(QMainWindow):
         self._disconnect_shortcuts()
         self.probes = []
         for i,p in enumerate(experiment_data['probes']):
+            angles = [p['angles']['elevation'], p['angles']['spin'], p['angles']['azimuth']]
+            origin = [p['tip']['ML'], p['tip']['AP'], p['tip']['DV']]
             self.probes.append(Probe(self.plotter,
                                      p['probetype'],
-                                     p['origin'],
-                                     p['angles'],
+                                     origin,
+                                     angles,
                                      p['active'],
                                      atlas_root_mesh=self.atlas.meshes['root']))
             if p['active']:
@@ -277,17 +280,17 @@ class VVASP(QMainWindow):
         self.show_entrypoint=True #FIXME: this is a hack to show the entrypoint for the time being
         if self.show_entrypoint:
             if prb.entry_point is not None:
-                self.xline.setText(str(int(prb.entry_point[1]))) 
+                self.xline.setValue(prb.entry_point[1])
                 self.yline.setText(str(int(prb.entry_point[0]))) 
                 self.zline.setText(str(int(prb.entry_point[2])))
                 self.depthline.setText(str(int(prb.depth)))
             else:
-                self.xline.setText('None') 
-                self.yline.setText('None')
-                self.zline.setText('None')
-                self.depthline.setText('None')
+                self.xline.setValue(prb.origin[1]) 
+                self.yline.setText(str(int(prb.origin[0])))
+                self.zline.setText(str(int(prb.origin[2])))
+                self.depthline.setText('0')
         else:
-            self.xline.setText(str(prb.origin[1])) 
+            self.xline.setValue(prb.origin[1])
             self.yline.setText(str(prb.origin[0])) 
             self.zline.setText(str(prb.origin[2]))
             self.depthline.setText(str(int(prb.depth)))
@@ -299,4 +302,3 @@ class VVASP(QMainWindow):
     def closeEvent(self,event):
         self.plotter.close()
         event.accept()
-
