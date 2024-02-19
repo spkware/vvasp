@@ -200,9 +200,19 @@ class Probe:
                 self.__move(position_shift.astype(int))
                 #self.__move(position_shift)
     
-
-    def __move(self, position_shift):     
-        self.origin += position_shift
+    def set_location(self,origin,angles):
+        if self.angles != angles: # update both if the origin changed
+            self.__rotate(angles,increment = False)
+            self.__move(origin,increment = False)
+        if self.origin != origin: # update if the angles didnt change but the origin did
+            self.__move(origin,increment = False)
+        
+    def __move(self, position_shift, increment = True):     
+        if increment:
+            self.origin += position_shift
+        else:
+            assert len(position_shift) == 3,ValueError('Position has to be 3 values') 
+            self.origin[:] = position_shift 
         for shnk,offset in zip(self.shanks, VAILD_PROBETYPES[self.probetype]):
             tip = np.array([offset,0,0])
             shnk.tip = tip
@@ -215,8 +225,17 @@ class Probe:
             else:
                 self.ball_mesh.shallow_copy(pv.Sphere(center=self.origin, radius=SPHERE_RADIUS))
 
-    def __rotate(self, angle_shift):
-        self.angles += angle_shift
+    def __rotate(self, angle_shift, increment = True):
+        '''
+        tip # [ML,AP,DV] 
+        [elev, spin, azimuth]
+        '''
+        if increment:
+            self.angles += angle_shift
+        else:
+            assert len(angle_shift) == 3,ValueError('Pass 3 angles') 
+            self.angles[:] = angle_shift
+            
         for shnk,offset in zip(self.shanks, VAILD_PROBETYPES[self.probetype]):
             tip = np.array([offset,0,0])
             shnk.tip = tip

@@ -176,7 +176,19 @@ class VVASP(QMainWindow):
         self.angle_fields.addWidget(self.zangline)
         vbox.addLayout(self.angle_fields)
         self.probe_position_box.setLayout(vbox)
-
+        for q in [self.xangline,self.yangline,self.zangline,
+                  self.xline,self.yline,self.zline,self.depthline]:
+            q.setReadOnly(True) 
+        # TODO:link when set to toggle origin position, make not editable otherwise
+        def _on_value_changed(value):
+            angles = [self.xangline.value(),self.yangline.value(),self.zangline.value()]
+            origin = [self.yline.value(),self.xline.value(),self.depthline.value()]
+            # try to update if changed
+            #self.probes[self.active_probe].set_location(origin,angles)
+        #for q in [self.xangline,self.yangline,self.zangline,
+        #      self.xline,self.yline]:
+        #      q.valueChanged.connect(_on_value_changed)
+            
         #TODO: connect the line edits to the probe position
         #for line_edit in self.probe_position_box.lineEdits:
         #    line_edit.textChanged.connect(self.update_probe_position_via_text)
