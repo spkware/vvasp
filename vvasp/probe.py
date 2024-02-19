@@ -193,11 +193,11 @@ class Probe:
             
             case 'retract':
                 position_shift = -move3D(multiplier, *self.angles[[0,2]])
-                self.__move(position_shift.astype(np.int))
+                self.__move(position_shift.astype(int))
                 #self.__move(position_shift)
             case 'advance':
                 position_shift = move3D(multiplier, *self.angles[[0,2]])
-                self.__move(position_shift.astype(np.int))
+                self.__move(position_shift.astype(int))
                 #self.__move(position_shift)
     
 

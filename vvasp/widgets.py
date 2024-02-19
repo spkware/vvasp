@@ -79,11 +79,12 @@ class VVASP(QMainWindow):
             self._load_experiment(filename)
         else:
             self.atlas = atlas_utils.Atlas(self.plotter)
-            self.atlas.add_atlas_region_mesh('CP') #TODO: this is just a placeholder for how we would call this later
+            #self.atlas.add_atlas_region_mesh('CP') #TODO: this is just a placeholder for how we would call this later
             self.atlas.add_atlas_region_mesh('MOp')
             self.atlas.add_atlas_region_mesh('ACA')
             self.atlas.add_atlas_region_mesh('VISp')
             self.atlas.add_atlas_region_mesh('VISam')
+            #self.atlas.add_atlas_region_mesh('LP')
 
 
         self.plotter.track_click_position(
@@ -129,31 +130,51 @@ class VVASP(QMainWindow):
         self.xyz_fields = QHBoxLayout()
         self.xyz_fields.addWidget(QLabel(xyzlabels[0]))
         from PyQt5.QtWidgets import QDoubleSpinBox
-        self.xline = QDoubleSpinBox(minimum=-10000,maximum=10000,decimals=0, singleStep=1)
+        self.xline = QDoubleSpinBox(minimum=-10000,
+                                    maximum=10000,
+                                    decimals=0,
+                                    singleStep=100)
         self.xyz_fields.addWidget(self.xline)
         self.xyz_fields.addWidget(QLabel(xyzlabels[1]))
-        self.yline = QLineEdit()
+        self.yline = QDoubleSpinBox(minimum=-10000,
+                                    maximum=10000,
+                                    decimals=0,
+                                    singleStep=100)
         self.xyz_fields.addWidget(self.yline)
         self.xyz_fields.addWidget(QLabel(xyzlabels[2]))
-        self.zline = QLineEdit()
+        self.zline = QDoubleSpinBox(minimum=-10000,
+                                    maximum=10000,
+                                    decimals=0,
+                                    singleStep=100)
         self.xyz_fields.addWidget(self.zline)
         self.xyz_fields.addWidget(QLabel(xyzlabels[3]))
-        self.depthline = QLineEdit()
+        self.depthline = QDoubleSpinBox(minimum=-10000,
+                                    maximum=10000,
+                                    decimals=0,
+                                    singleStep=100)
         self.xyz_fields.addWidget(self.depthline)
         vbox.addLayout(self.xyz_fields)
 
         self.angle_fields = QHBoxLayout()
         self.angle_fields.addWidget(QLabel(anglelabels[0]))
-        self.xangline = QLineEdit()
+        self.xangline = QDoubleSpinBox(minimum=-360,
+                                       maximum=360,
+                                       decimals=0,
+                                       singleStep=5)
         self.angle_fields.addWidget(self.xangline)
         self.angle_fields.addWidget(QLabel(anglelabels[1]))
-        self.yangline = QLineEdit()
+        self.yangline = QDoubleSpinBox(minimum=-360,
+                                       maximum=360,
+                                       decimals=0,
+                                       singleStep=5)
         self.angle_fields.addWidget(self.yangline)
         self.angle_fields.addWidget(QLabel(anglelabels[2]))
-        self.zangline = QLineEdit()
+        self.zangline = QDoubleSpinBox(minimum=-360,
+                                       maximum=360,
+                                       decimals=0,
+                                       singleStep=5)
         self.angle_fields.addWidget(self.zangline)
         vbox.addLayout(self.angle_fields)
-        
         self.probe_position_box.setLayout(vbox)
 
         #TODO: connect the line edits to the probe position
@@ -192,7 +213,7 @@ class VVASP(QMainWindow):
                 self._update_probe_position_text() # update the text box with the new position
             func = lambda d=direction,m=multiplier:_shortcut_handler_function(d,m)
             shortcut.activated.connect(func)
-
+            
     def _init_atlas_view_box(self):
         self.atlas_view_box = QGroupBox(f'Atlas View: {io.preferences["atlas"]}')
         self.atlas_view_box.setLayout(QVBoxLayout())
@@ -281,23 +302,23 @@ class VVASP(QMainWindow):
         if self.show_entrypoint:
             if prb.entry_point is not None:
                 self.xline.setValue(prb.entry_point[1])
-                self.yline.setText(str(int(prb.entry_point[0]))) 
-                self.zline.setText(str(int(prb.entry_point[2])))
-                self.depthline.setText(str(int(prb.depth)))
+                self.yline.setValue(prb.entry_point[0]) 
+                self.zline.setValue(prb.entry_point[2])
+                self.depthline.setValue(prb.depth)
             else:
                 self.xline.setValue(prb.origin[1]) 
-                self.yline.setText(str(int(prb.origin[0])))
-                self.zline.setText(str(int(prb.origin[2])))
-                self.depthline.setText('0')
+                self.yline.setValue(prb.origin[0])
+                self.zline.setValue(prb.origin[2])
+                self.depthline.setValue(0)
         else:
             self.xline.setValue(prb.origin[1])
-            self.yline.setText(str(prb.origin[0])) 
-            self.zline.setText(str(prb.origin[2]))
-            self.depthline.setText(str(int(prb.depth)))
+            self.yline.setValue(prb.origin[0]) 
+            self.zline.setValue(prb.origin[2])
+            self.depthline.setValue(prb.depth)
 
-        self.xangline.setText(str(prb.angles[0])) 
-        self.yangline.setText(str(prb.angles[2])) 
-        self.zangline.setText(str(prb.angles[1]))
+        self.xangline.setValue(prb.angles[0]) 
+        self.yangline.setValue(prb.angles[2]) 
+        self.zangline.setValue(prb.angles[1])
 
     def closeEvent(self,event):
         self.plotter.close()
