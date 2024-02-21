@@ -199,6 +199,10 @@ class Probe:
                 position_shift = move3D(multiplier, *self.angles[[0,2]])
                 self.__move(position_shift.astype(int))
                 #self.__move(position_shift)
+
+            case 'home':
+                self.__move(np.array([0,0,0]),increment = False)
+                self.__rotate(np.array([-90,0,0]),increment = False)
     
     def set_location(self,origin,angles):
         if self.angles != angles: # update both if the origin changed

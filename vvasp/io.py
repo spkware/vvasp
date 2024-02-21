@@ -25,6 +25,7 @@ DEFAULT_MOVEMENT_KEYBINDS = {'a': ['left', 100],
                              'c': ['ventral', 100],
                              'w': ['anterior', 100],
                              's': ['posterior', 100],
+                             'h': ['home', 0],
          
                              'Ctrl+a': ['left', 10],
                              'Ctrl+d': ['right', 10],
