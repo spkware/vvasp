@@ -5,7 +5,7 @@ def list_availible_atlases():
     return [x.name for x in io.ATLAS_DIR.glob('*')]
 
 class Atlas:
-    def __init__(self, vistaplotter, atlas_name=None, structure_tree_depth=3):
+    def __init__(self, vistaplotter, atlas_name=None, min_tree_depth=3, max_tree_depth=7):
         if atlas_name is None:
             atlas_name = io.preferences['atlas']
         self.name = atlas_name
@@ -14,26 +14,28 @@ class Atlas:
         self.meshes = {}
         self.meshcols = {}
         self.fetch_atlas()
-        self.load_atlas_metadata(structure_tree_depth)
+        self.load_atlas_metadata(min_tree_depth, max_tree_depth)
         self.initialize()
         
     def fetch_atlas(self):
         #download the atlas if not present
         pass
 
-    def load_atlas_metadata(self, structure_tree_depth):
+    def load_atlas_metadata(self, min_tree_depth, max_tree_depth):
         atlas_path = io.ATLAS_DIR / io.preferences['atlas']
-        global structures
         with open(atlas_path/'structures.json','r') as fd:
             structures = io.json.load(fd)
-        global metadata
         with open(atlas_path/'metadata.json','r') as fd:
             metadata = io.json.load(fd)
         maxdepth = np.max([len(p['structure_id_path']) for p in structures]) #get max tree depth
-        structures = [s for s in structures if len(s['structure_id_path']) <= structure_tree_depth] #restrict to regions at or below max tree depth
-
+        tmp_root = [s for s in structures if s['acronym'] == 'root'][0]
+        structures = [s for s in structures if len(s['structure_id_path']) <= max_tree_depth] #restrict to regions at or below max tree depth
+        structures = [s for s in structures if len(s['structure_id_path']) >= min_tree_depth] #restrict to regions at or below max tree depth
+        structures.append(tmp_root) #add root back in (it can get removed if min_tree_depth > 1)
+        structures = pd.DataFrame(structures)
         self.structures = pd.DataFrame(structures)    
-        self.structure_tree_depth = structure_tree_depth
+        self.min_tree_depth = min_tree_depth
+        self.max_tree_depth = max_tree_depth
         self.maxdepth = maxdepth
         self.atlas_path = atlas_path
         self.bregma_location = np.array(io.preferences['bregma_locations'][self.name])*metadata['resolution']
@@ -105,7 +107,15 @@ class Atlas:
 
     @property
     def atlas_properties(self):
-        return dict(name=self.name, visible_regions=list(self.visible_region_actors.keys()))
+        return dict(name=self.name, min_tree_depth = self.min_tree_depth, max_tree_depth=self.max_tree_depth, visible_regions=list(self.visible_region_actors.keys()))
+    
+    @property
+    def visible_atlas_regions(self):
+        return list(self.visible_region_actors.keys())
+    
+    @property
+    def all_atlas_regions(self):
+        return self.structures.acronym.values
 
     def __del__(self):
         temp = list(self.visible_region_actors.keys())

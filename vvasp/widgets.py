@@ -23,6 +23,7 @@ from PyQt5.QtWidgets import (QWidget,
                              QPushButton,
                              QLabel,
                              QAction,
+                             QListWidget,
                              QWidgetAction,
                              QMenuBar,
                              QDoubleSpinBox,
@@ -30,6 +31,7 @@ from PyQt5.QtWidgets import (QWidget,
                              QGraphicsScene,
                              QGraphicsItem,
                              QGraphicsLineItem,
+                             QListWidgetItem,
                              QGroupBox,
                              QTableWidget,
                              QShortcut,
@@ -51,8 +53,6 @@ class VVASP(QMainWindow):
         # filename will be letting you plot the same probes again
         # It'll be just a human readable JSON file.
         super(VVASP,self).__init__()
-        #if filename is not None: #TODO: implement CLI file load 
-        #    io.load_experiment(filename)
         self.filename = filename
         self.setWindowTitle('VVASP')
         self.resize(VVASP.DEFAULT_WIDTH,VVASP.DEFAULT_HEIGHT)
@@ -78,9 +78,9 @@ class VVASP(QMainWindow):
             raise NotImplementedError('Loading experiments via CLI args not yet implemented')
             self._load_experiment(filename)
         else:
-            self.atlas = atlas_utils.Atlas(self.plotter, structure_tree_depth=8) #TODO: allow the user to update tree depth
-            self.atlas.add_atlas_region_mesh('CP') #TODO: this is just a placeholder for how we would call this later
-            self.atlas.add_atlas_region_mesh('MOp')
+            self.atlas = atlas_utils.Atlas(self.plotter, min_tree_depth=8, max_tree_depth=8) #TODO: allow the user to update tree depth
+            #self.atlas.add_atlas_region_mesh('CP') #TODO: this is just a placeholder for how we would call this later
+            #self.atlas.add_atlas_region_mesh('MOp')
             #self.atlas.add_atlas_region_mesh('ACA')
             #self.atlas.add_atlas_region_mesh('VISp')
             #self.atlas.add_atlas_region_mesh('VISam')
@@ -97,6 +97,8 @@ class VVASP(QMainWindow):
         self.initUI() 
         self.vlayout.addLayout(self.bottom_horizontal_widgets)
         self.show()
+        #if filename is not None: #TODO: implement CLI file load
+        #    io.load_experiment(filename)
     
     def initUI(self):
         self._init_menubar()
@@ -228,8 +230,33 @@ class VVASP(QMainWindow):
             
     def _init_atlas_view_box(self):
         self.atlas_view_box = QGroupBox(f'Atlas View: {io.preferences["atlas"]}')
-        self.atlas_view_box.setLayout(QVBoxLayout())
+        self.atlas_view_box.setFixedHeight(300)
+        self.atlas_view_box.setFixedWidth(300)
+
+        layout = QHBoxLayout()
+        self.atlas_list_widget = QListWidget()
+        self.atlas_list_widget.setSelectionMode(QListWidget.MultiSelection)
+
+        for acronym in self.atlas.all_atlas_regions:
+            item = QListWidgetItem(acronym)
+            item.setCheckState(0)  # 0 represents unchecked state 
+            self.atlas_list_widget.addItem(item)
+        self.atlas_list_widget.setMaximumWidth(200)
+
+        layout.addWidget(self.atlas_list_widget)
+        self.atlas_view_box.setLayout(layout)
+
+        self.atlas_list_widget.itemClicked.connect(self.handle_atlas_list_item_click)
+        
         self.bottom_horizontal_widgets.addWidget(self.atlas_view_box)
+    
+    def handle_atlas_list_item_click(self, item):
+        acronym = item.text()
+        state = item.checkState()
+        if state == 0:
+            self.atlas.remove_atlas_region_mesh(acronym)
+        elif state == 2:
+            self.atlas.add_atlas_region_mesh(acronym)
 
 
     def _load_experiment(self, filename=None):
@@ -238,7 +265,10 @@ class VVASP(QMainWindow):
         else:
             self.filename = filename
         experiment_data = io.load_experiment_file(self.filename)
-        self.atlas = atlas_utils.Atlas(self.plotter, atlas_name=experiment_data['atlas']['name'])
+        self.atlas = atlas_utils.Atlas(self.plotter,
+                                       atlas_name=experiment_data['atlas']['name'],
+                                       min_tree_depth=experiment_data['atlas']['min_tree_depth'],
+                                       max_tree_depth=experiment_data['atlas']['max_tree_depth'])
         for r in experiment_data['atlas']['visible_regions']:
             self.atlas.add_atlas_region_mesh(r)
 
@@ -255,8 +285,9 @@ class VVASP(QMainWindow):
                                      atlas_root_mesh=self.atlas.meshes['root']))
             if p['active']:
                 self.active_probe = i
-        self._update_probe_position_text()
-        self._update_shortcut_actions(disconnect_existing=False)
+        if len(self.probes) > 0:
+            self._update_probe_position_text()
+            self._update_shortcut_actions(disconnect_existing=False)
         self.plotter.update()
     
     def _save_experiment(self):
@@ -293,10 +324,12 @@ class VVASP(QMainWindow):
         self.update_active_probe(active_probe)
     
     def next_probe(self):
-        self.update_active_probe((self.active_probe + 1) % len(self.probes))
+        if len(self.probes) > 0:
+            self.update_active_probe((self.active_probe + 1) % len(self.probes))
     
     def previous_probe(self):
-        self.update_active_probe((self.active_probe - 1) % len(self.probes))
+        if len(self.probes) > 0:
+            self.update_active_probe((self.active_probe - 1) % len(self.probes))
     
     def update_active_probe(self, active_probe):
         self.active_probe = active_probe
