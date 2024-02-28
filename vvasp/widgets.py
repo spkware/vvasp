@@ -78,12 +78,12 @@ class VVASP(QMainWindow):
             raise NotImplementedError('Loading experiments via CLI args not yet implemented')
             self._load_experiment(filename)
         else:
-            self.atlas = atlas_utils.Atlas(self.plotter)
-            #self.atlas.add_atlas_region_mesh('CP') #TODO: this is just a placeholder for how we would call this later
+            self.atlas = atlas_utils.Atlas(self.plotter, structure_tree_depth=8) #TODO: allow the user to update tree depth
+            self.atlas.add_atlas_region_mesh('CP') #TODO: this is just a placeholder for how we would call this later
             self.atlas.add_atlas_region_mesh('MOp')
-            self.atlas.add_atlas_region_mesh('ACA')
-            self.atlas.add_atlas_region_mesh('VISp')
-            self.atlas.add_atlas_region_mesh('VISam')
+            #self.atlas.add_atlas_region_mesh('ACA')
+            #self.atlas.add_atlas_region_mesh('VISp')
+            #self.atlas.add_atlas_region_mesh('VISam')
             #self.atlas.add_atlas_region_mesh('LP')
 
 

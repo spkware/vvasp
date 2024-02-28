@@ -5,7 +5,7 @@ def list_availible_atlases():
     return [x.name for x in io.ATLAS_DIR.glob('*')]
 
 class Atlas:
-    def __init__(self, vistaplotter, atlas_name=None):
+    def __init__(self, vistaplotter, atlas_name=None, structure_tree_depth=3):
         if atlas_name is None:
             atlas_name = io.preferences['atlas']
         self.name = atlas_name
@@ -14,14 +14,14 @@ class Atlas:
         self.meshes = {}
         self.meshcols = {}
         self.fetch_atlas()
-        self.load_atlas()
+        self.load_atlas_metadata(structure_tree_depth)
         self.initialize()
         
     def fetch_atlas(self):
         #download the atlas if not present
         pass
 
-    def load_atlas(self):
+    def load_atlas_metadata(self, structure_tree_depth):
         atlas_path = io.ATLAS_DIR / io.preferences['atlas']
         global structures
         with open(atlas_path/'structures.json','r') as fd:
@@ -29,20 +29,25 @@ class Atlas:
         global metadata
         with open(atlas_path/'metadata.json','r') as fd:
             metadata = io.json.load(fd)
+        maxdepth = np.max([len(p['structure_id_path']) for p in structures]) #get max tree depth
+        structures = [s for s in structures if len(s['structure_id_path']) <= structure_tree_depth] #restrict to regions at or below max tree depth
 
         self.structures = pd.DataFrame(structures)    
+        self.structure_tree_depth = structure_tree_depth
+        self.maxdepth = maxdepth
         self.atlas_path = atlas_path
         self.bregma_location = np.array(io.preferences['bregma_locations'][self.name])*metadata['resolution']
         self.metadata = metadata
 
     def initialize(self, show_root=True, show_bregma=True):
-        # TODO: load up meshes, rotate/translate them appropriately and compute the areas they occupy in space. 
+        # load up meshes, rotate/translate them appropriately and compute the areas they occupy in space. 
         # Importantly, don't render them to the plotter yet, it will just bog it down.
         regions = list(self.structures.acronym.values)
         axes = io.pv.Axes()
         axes.origin = self.bregma_location
         
         rotate5deg = True
+
 
         for r in regions:
             try:
