@@ -13,8 +13,8 @@ ATLAS_DIR = Path('~').expanduser()/'.brainglobe'
 ALL_PREF_FILES = [PREFS_FILE, MOVEMENT_KEYBINDS_FILE, STATIC_KEYBINDS_FILE]
 
 DEFAULT_PREFERENCES = {'atlas':'allen_mouse_25um_v1.2',
-                        'bregma_locations':{'allen_mouse_25um_v1.2':[216, 18,228],
-                                            },
+                       'bregma_locations':{'allen_mouse_25um_v1.2':[216, 18,228],},
+                       'default_save_dir':str(EXPERIMENT_DIR),
                        'warn_collisions':True,
                        'warn_overwrite':True,
                        'warn_delete':True,}

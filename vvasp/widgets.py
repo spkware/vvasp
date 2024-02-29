@@ -74,18 +74,7 @@ class VVASP(QMainWindow):
         self.vistaframe.setLayout(self.vlayout)
         self.setCentralWidget(self.vistaframe)
 
-        if filename is not None:
-            raise NotImplementedError('Loading experiments via CLI args not yet implemented')
-            self._load_experiment(filename)
-        else:
-            self.atlas = atlas_utils.Atlas(self.plotter, min_tree_depth=8, max_tree_depth=8) #TODO: allow the user to update tree depth
-            #self.atlas.add_atlas_region_mesh('CP') #TODO: this is just a placeholder for how we would call this later
-            #self.atlas.add_atlas_region_mesh('MOp')
-            #self.atlas.add_atlas_region_mesh('ACA')
-            #self.atlas.add_atlas_region_mesh('VISp')
-            #self.atlas.add_atlas_region_mesh('VISam')
-            #self.atlas.add_atlas_region_mesh('LP')
-
+        self.atlas = atlas_utils.Atlas(self.plotter, min_tree_depth=8, max_tree_depth=8) #TODO: allow the user to update tree depth
 
         self.plotter.track_click_position(
             callback=lambda x: print(x,flush=True),
@@ -109,6 +98,7 @@ class VVASP(QMainWindow):
     def _init_menubar(self):
         self.menubar = self.menuBar()
         self.fileMenu = self.menubar.addMenu('File')
+        self.fileMenu.addAction('New experiment (resets the plotter)', self._new_experiment)
         self.fileMenu.addAction('Load experiment', self._load_experiment)
         self.fileMenu.addAction('Save experiment',self._save_experiment)
         self.fileMenu.addAction('Save experiment as',self._save_experiment_as)
@@ -242,14 +232,21 @@ class VVASP(QMainWindow):
             item.setCheckState(0)  # 0 represents unchecked state 
             self.atlas_list_widget.addItem(item)
         self.atlas_list_widget.setMaximumWidth(200)
-
+        
         layout.addWidget(self.atlas_list_widget)
         self.atlas_view_box.setLayout(layout)
 
         self.atlas_list_widget.itemClicked.connect(self.handle_atlas_list_item_click)
-        
         self.bottom_horizontal_widgets.addWidget(self.atlas_view_box)
-    
+
+    def _update_atlas_view_box(self):
+        for index in range(self.atlas_list_widget.count()):
+            item = self.atlas_list_widget.item(index)
+            if item.text() in self.atlas.visible_atlas_regions:
+                item.setCheckState(2)  # 2 represents checked state
+            else:
+                item.setCheckState(0)  # 0 represents unchecked state 
+         
     def handle_atlas_list_item_click(self, item):
         acronym = item.text()
         state = item.checkState()
@@ -258,10 +255,9 @@ class VVASP(QMainWindow):
         elif state == 2:
             self.atlas.add_atlas_region_mesh(acronym)
 
-
     def _load_experiment(self, filename=None):
         if filename is None:
-            self.filename = QFileDialog.getOpenFileName(self, 'Open file', str(io.EXPERIMENT_DIR), filter='*.json')[0]
+            self.filename = QFileDialog.getOpenFileName(self, 'Open file', str(io.preferences['default_save_dir']), filter='*.json')[0]
         else:
             self.filename = filename
         experiment_data = io.load_experiment_file(self.filename)
@@ -269,9 +265,10 @@ class VVASP(QMainWindow):
                                        atlas_name=experiment_data['atlas']['name'],
                                        min_tree_depth=experiment_data['atlas']['min_tree_depth'],
                                        max_tree_depth=experiment_data['atlas']['max_tree_depth'])
+
         for r in experiment_data['atlas']['visible_regions']:
             self.atlas.add_atlas_region_mesh(r)
-
+        self._update_atlas_view_box()
         self._disconnect_shortcuts()
         self.probes = []
         for i,p in enumerate(experiment_data['probes']):
@@ -290,14 +287,23 @@ class VVASP(QMainWindow):
             self._update_shortcut_actions(disconnect_existing=False)
         self.plotter.update()
     
+    def _new_experiment(self):
+        self.probes = []
+        self.atlas = atlas_utils.Atlas(self.plotter, min_tree_depth=8, max_tree_depth=8) #TODO: allow the user to update tree depth
+        self.active_probe = None
+        self.filename = None
+        self._update_atlas_view_box()
+        #self._update_probe_position_text()
+        pass
+     
     def _save_experiment(self):
         if self.filename is None:
             self._save_experiment_as()
         else:
-            io.save_experiment(self.probes, self.atlas, io.EXPERIMENT_DIR / self.filename)
+            io.save_experiment(self.probes, self.atlas, Path(io.preferences['default_save_dir']) / self.filename)
     
     def _save_experiment_as(self):
-        filename = QFileDialog.getSaveFileName(self, 'Save file', str(io.EXPERIMENT_DIR), filter='*.json')[0]
+        filename = QFileDialog.getSaveFileName(self, 'Save file', str(io.preferences['default_save_dir']), filter='*.json')[0]
         if filename: # handle the case where the user cancels the save dialog
             self.filename = filename
             io.save_experiment(self.probes, self.atlas, io.EXPERIMENT_DIR / self.filename)
