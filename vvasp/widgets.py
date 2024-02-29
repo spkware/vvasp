@@ -205,9 +205,8 @@ class VVASP(QMainWindow):
           
 
     def _disconnect_shortcuts(self):
-        if len(self.probes) > 1: #handle case where no probe is active yet
-            for shortcut in self.dynamic_shortcuts.keys():
-                shortcut.activated.disconnect()
+        for shortcut in self.dynamic_shortcuts.keys():
+            shortcut.activated.disconnect()
 
     def _update_shortcut_actions(self, disconnect_existing=True): # rebind the actions when a new probe is active
         if disconnect_existing: #handle case where no probe is active yet
@@ -270,7 +269,8 @@ class VVASP(QMainWindow):
         for r in experiment_data['atlas']['visible_regions']:
             self.atlas.add_atlas_region_mesh(r)
         self._update_atlas_view_box()
-        self._disconnect_shortcuts()
+        if len(self.probes) > 0:
+            self._disconnect_shortcuts()
         self.probes = []
         for i,p in enumerate(experiment_data['probes']):
             angles = [p['angles']['elevation'], p['angles']['spin'], p['angles']['azimuth']]
@@ -283,15 +283,16 @@ class VVASP(QMainWindow):
                                      atlas_root_mesh=self.atlas.meshes['root']))
             if p['active']:
                 self.active_probe = i
-        if len(self.probes) > 0:
-            self._update_probe_position_text()
-            self._update_shortcut_actions(disconnect_existing=False)
+        self._update_probe_position_text()
+        self._update_shortcut_actions(disconnect_existing=False)
         self.plotter.update()
     
     def _new_experiment(self):
         reply = QMessageBox.question(self, 'Confirm new experiment', "Are you sure you want to create a new experiment? This will clear all probes and the atlas and erase unsaved data.", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if reply == QMessageBox.No:
             return
+        if len(self.probes) > 0:
+            self._disconnect_shortcuts()
         self.probes = []
         self.atlas = atlas_utils.Atlas(self.plotter, min_tree_depth=8, max_tree_depth=8) #TODO: allow the user to update tree depth
         self.active_probe = None
@@ -348,7 +349,10 @@ class VVASP(QMainWindow):
             else:
                 prb.make_inactive()
         self._update_probe_position_text()
-        self._update_shortcut_actions()
+        if len(self.probes) > 1:
+            self._update_shortcut_actions(disconnect_existing=True)
+        else:
+            self._update_shortcut_actions(disconnect_existing=False)
     
     def _update_probe_position_text(self):
         prb = self.probes[self.active_probe]
