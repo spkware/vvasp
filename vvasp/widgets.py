@@ -9,6 +9,7 @@ from . import atlas_utils
 from PyQt5.QtWidgets import (QWidget,
                              QApplication,
                              QFrame,
+                             QMessageBox,
                              QMenu,
                              QGridLayout,
                              QFormLayout,
@@ -288,13 +289,15 @@ class VVASP(QMainWindow):
         self.plotter.update()
     
     def _new_experiment(self):
+        reply = QMessageBox.question(self, 'Confirm new experiment', "Are you sure you want to create a new experiment? This will clear all probes and the atlas and erase unsaved data.", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.No:
+            return
         self.probes = []
         self.atlas = atlas_utils.Atlas(self.plotter, min_tree_depth=8, max_tree_depth=8) #TODO: allow the user to update tree depth
         self.active_probe = None
         self.filename = None
         self._update_atlas_view_box()
         #self._update_probe_position_text()
-        pass
      
     def _save_experiment(self):
         if self.filename is None:
