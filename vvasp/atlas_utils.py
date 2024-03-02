@@ -13,19 +13,23 @@ class Atlas:
         self.visible_region_actors = {}
         self.meshes = {}
         self.meshcols = {}
-        self.fetch_atlas()
+        self.fetch_atlas(atlas_name)
         self.load_atlas_metadata(min_tree_depth, max_tree_depth)
         self.initialize()
         
-    def fetch_atlas(self):
+    def fetch_atlas(self, atlas_name, force_redownload=False):
+        from bg_atlasapi import BrainGlobeAtlas, show_atlases
         #download the atlas if not present
-        pass
+        atlas_path = Path(io.preferences['atlas_dir']) / io.preferences['atlas']
+        bg_atlas = BrainGlobeAtlas(atlas_name, check_latest=False)
+        self.atlas_path = bg_atlas.brainglobe_dir / bg_atlas.local_full_name
+        #show_atlases() # show all available atlases from BrainGlobe
 
     def load_atlas_metadata(self, min_tree_depth, max_tree_depth):
-        atlas_path = io.ATLAS_DIR / io.preferences['atlas']
-        with open(atlas_path/'structures.json','r') as fd:
+        #TODO: maybe use some brainglobe functionality to load data and traverse tree depths instead
+        with open(self.atlas_path/'structures.json','r') as fd:
             structures = io.json.load(fd)
-        with open(atlas_path/'metadata.json','r') as fd:
+        with open(self.atlas_path/'metadata.json','r') as fd:
             metadata = io.json.load(fd)
         maxdepth = np.max([len(p['structure_id_path']) for p in structures]) #get max tree depth
         tmp_root = [s for s in structures if s['acronym'] == 'root'][0]
@@ -37,7 +41,6 @@ class Atlas:
         self.min_tree_depth = min_tree_depth
         self.max_tree_depth = max_tree_depth
         self.maxdepth = maxdepth
-        self.atlas_path = atlas_path
         self.bregma_location = np.array(io.preferences['bregma_locations'][self.name])*metadata['resolution']
         self.metadata = metadata
 
@@ -107,7 +110,10 @@ class Atlas:
 
     @property
     def atlas_properties(self):
-        return dict(name=self.name, min_tree_depth = self.min_tree_depth, max_tree_depth=self.max_tree_depth, visible_regions=list(self.visible_region_actors.keys()))
+        return dict(name=self.name,
+                    min_tree_depth=self.min_tree_depth,
+                    max_tree_depth=self.max_tree_depth,
+                    visible_regions=self.visible_atlas_regions)
     
     @property
     def visible_atlas_regions(self):
