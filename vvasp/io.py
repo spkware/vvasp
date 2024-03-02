@@ -12,9 +12,11 @@ ATLAS_DIR = Path('~').expanduser()/'.brainglobe'
 
 ALL_PREF_FILES = [PREFS_FILE, MOVEMENT_KEYBINDS_FILE, STATIC_KEYBINDS_FILE]
 
-DEFAULT_PREFERENCES = {'atlas':'allen_mouse_25um_v1.2',
-                       'bregma_locations':{'allen_mouse_25um_v1.2':[216, 18,228],},
+DEFAULT_PREFERENCES = {'atlas':'allen_mouse_25um',
+                       'bregma_locations':{'allen_mouse_25um':[216, 18,228],
+                                           'whs_sd_rat_39um':[0,0,0],}, #this is not true bregma for the rat atlas, just testing
                        'default_save_dir':str(EXPERIMENT_DIR),
+                       'atlas_dir':str(ATLAS_DIR), # the location of brainglobe atlas files
                        'warn_collisions':True,
                        'warn_overwrite':True,
                        'warn_delete':True,}
@@ -118,8 +120,11 @@ def update_prefs():
     raise NotImplementedError
 
 def save_experiment(probes, atlas, filepath):
+    git_commit_hash = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip() # save the version of VVASP this file was created with
+
     experiment_data = dict(probes = [probe.probe_properties for probe in probes],
-                           atlas = atlas.atlas_properties)
+                           atlas = atlas.atlas_properties,
+                           vvasp_commit_version = git_commit_hash,)
     with open(Path(filepath),'w') as fd:
         json.dump(experiment_data, fd, sort_keys=False, indent=4)
 
