@@ -49,10 +49,10 @@ class Atlas:
         # Importantly, don't render them to the plotter yet, it will just bog it down.
         regions = list(self.structures.acronym.values)
         axes = io.pv.Axes()
-        axes.origin = self.bregma_location
+        #axes.origin = self.bregma_location
+        axes.origin = np.array([0,0,0])
         
         rotate5deg = True
-
 
         for r in regions:
             try:
@@ -62,11 +62,11 @@ class Atlas:
                 self.structures = self.structures[self.structures.acronym != r]
                 continue
         
+            s[0].translate(-self.bregma_location, inplace=True) #make bregma the origin
             s[0].rotate_y(90, point=axes.origin, inplace=True) # rotate the meshes so that [x,y,z] => [ML,AP,DV]
             s[0].rotate_x(-90, point=axes.origin, inplace=True)
             if rotate5deg:
                 s[0].rotate_x(5,point=axes.origin, inplace=True) # allenCCF has a 5 degree tilt
-            s[0].translate(-self.bregma_location, inplace=True) #make bregma the origin
             self.meshes[r] = s[0]
             self.meshcols[r] = s[1]['rgb_triplet']
         assert len(self.meshes) == len(self.structures)

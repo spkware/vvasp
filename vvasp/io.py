@@ -14,7 +14,7 @@ ALL_PREF_FILES = [PREFS_FILE, MOVEMENT_KEYBINDS_FILE, STATIC_KEYBINDS_FILE]
 
 DEFAULT_PREFERENCES = {'atlas':'allen_mouse_25um',
                        'bregma_locations':{'allen_mouse_25um':[216, 18,228],
-                                           'whs_sd_rat_39um':[0,0,0],}, #this is not true bregma for the rat atlas, just testing
+                                           'whs_sd_rat_39um':[246, 653, 440],}, #this is not true bregma for the rat atlas, just testing
                        'default_save_dir':str(EXPERIMENT_DIR),
                        'atlas_dir':str(ATLAS_DIR), # the location of brainglobe atlas files
                        'warn_collisions':True,

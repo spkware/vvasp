@@ -6,7 +6,8 @@ Max Melin, 2024
 """
 
 VAILD_PROBETYPES = {'NP24':(-410,-160,90,340),
-                    'NP1(3B)':(-35,)} # the valid probetypes and a tuple with the shank offsets from the origin
+                    'NP1(3B)':(-35,),
+                    'Window (5mm)':(0)} # the valid probetypes and a tuple with the shank offsets from the origin
 
 SHANK_DIMS_UM = np.array([70,-10_000,0]) # the dimensions of the shank in um
 INIT_VEC = np.array([0,SHANK_DIMS_UM[1],0])
@@ -49,6 +50,8 @@ class Shank:
         self.actor = self.plotter.add_mesh(self.mesh,color=ACTIVE_COLOR ,opacity = 1,line_width=3)
 
 class Probe:
+    #TODO: refactor this into a BaseVVASPObject class and have probes/windows/neurons/etc inherit from it
+    # subclasses will define their own meshes, but the base class will handle the movement, rotation, and drawing
     def __init__(self, vistaplotter, probetype, origin, angles, active=True, ray_trace_insertion=True, atlas_root_mesh=None):
         assert probetype in VAILD_PROBETYPES.keys(), f'Invalid probetype: {probetype}'
         if ray_trace_insertion and atlas_root_mesh is None:

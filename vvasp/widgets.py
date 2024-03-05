@@ -107,7 +107,7 @@ class VVASP(QMainWindow):
         self.fileMenu.addAction('Quit',self.close)
         self.probeMenu = self.menubar.addMenu('Probe')
         for p in VAILD_PROBETYPES:
-            self.probeMenu.addAction(f'Add Probe: {p}', lambda probe_type=p: self.render_new_probe_meshes(probe_type))
+            self.probeMenu.addAction(f'Add Probe: {p}', lambda probe_type=p: self.new_probe(probe_type))
         #self.probeMenu.addAction('Remove Active Probe',self.probes[self.active_probe].remove_probe)
         self.probeMenu.addAction('Next Probe',self.next_probe)
         self.probeMenu.addAction('Previous Probe',self.previous_probe)
