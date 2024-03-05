@@ -17,6 +17,7 @@ from PyQt5.QtWidgets import (QWidget,
                              QHBoxLayout,
                              QTabWidget,
                              QCheckBox,
+                             QToolBar,
                              QTextEdit,
                              QLineEdit,
                              QComboBox,
@@ -95,6 +96,21 @@ class VVASP(QMainWindow):
         self._init_probe_position_box()
         self._init_atlas_view_box()
         self._init_keyboard_shortcuts()
+        self._init_toolbar()
+    
+    def _add_action(self, tool_bar, key, method):
+        action = QAction(key, self.app_window)
+        action.triggered.connect(method)
+        tool_bar.addAction(action)
+        return action
+
+    def _init_toolbar(self):
+        toolbar = QToolBar(self)
+        self.addToolBar(toolbar)
+        toolbar.addAction('Camera')
+        # TODO: build this out with the camera functionality of the BackgroundPlotter
+
+        
     
     def _init_menubar(self):
         self.menubar = self.menuBar()
@@ -103,7 +119,7 @@ class VVASP(QMainWindow):
         self.fileMenu.addAction('Load experiment', self._load_experiment)
         self.fileMenu.addAction('Save experiment',self._save_experiment)
         self.fileMenu.addAction('Save experiment as',self._save_experiment_as)
-        self.fileMenu.addAction('Export experiment as',self._export_experiment_as)
+        self.fileMenu.addAction('Screenshot',self._screenshot)
         self.fileMenu.addAction('Quit',self.close)
         self.probeMenu = self.menubar.addMenu('Probe')
         for p in VAILD_PROBETYPES:
@@ -306,6 +322,12 @@ class VVASP(QMainWindow):
         else:
             io.save_experiment(self.probes, self.atlas, Path(io.preferences['default_save_dir']) / self.filename)
     
+    def _screenshot(self):
+        filename = QFileDialog.getSaveFileName(self, 'Save screenshot', str(io.preferences['default_save_dir']), filter='*.png')[0]
+        if filename: # handle the case where the user cancels the save dialog
+            self.filename = filename
+            self.plotter.screenshot(self.filename)
+
     def _save_experiment_as(self):
         filename = QFileDialog.getSaveFileName(self, 'Save file', str(io.preferences['default_save_dir']), filter='*.json')[0]
         if filename: # handle the case where the user cancels the save dialog
