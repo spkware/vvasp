@@ -1,75 +1,20 @@
-from tkinter import W
-
-from vvasp import probe
 from .utils import *
+from .default_prefs import (ALL_PREFS, 
+                            DEFAULT_PROBE_GEOMETRIES,
+                            EXPERIMENT_DIR,
+                            EXPORT_DIR,
+                            ALL_PREF_FILES, 
+                            PREFS_FILE, 
+                            DEFAULT_PREFERENCES, 
+                            MOVEMENT_KEYBINDS_FILE, 
+                            DEFAULT_MOVEMENT_KEYBINDS, 
+                            PROBE_GEOMETRIES_FILE,
+                            STATIC_KEYBINDS_FILE,
+                            DEFAULT_STATIC_KEYBINDS)
 
-PREFS_FILE = Path('~').expanduser() / 'vvasp' / 'preferences.json'
-MOVEMENT_KEYBINDS_FILE = Path('~').expanduser() / 'vvasp' / 'movement_keybinds.json'
-STATIC_KEYBINDS_FILE = Path('~').expanduser() / 'vvasp' / 'static_keybinds.json'
-EXPERIMENT_DIR = Path('~').expanduser() / 'vvasp' / 'experiments'
-EXPORT_DIR = Path('~').expanduser() / 'vvasp' / 'exports'
-ATLAS_DIR = Path('~').expanduser()/'.brainglobe'
-
-ALL_PREF_FILES = [PREFS_FILE, MOVEMENT_KEYBINDS_FILE, STATIC_KEYBINDS_FILE]
-
-DEFAULT_PREFERENCES = {'atlas':'allen_mouse_25um',
-                       'bregma_locations':{'allen_mouse_25um':[216, 18,228],
-                                           'whs_sd_rat_39um':[246, 653, 440],}, #this is not true bregma for the rat atlas, just testing
-                       'default_save_dir':str(EXPERIMENT_DIR),
-                       'atlas_dir':str(ATLAS_DIR), # the location of brainglobe atlas files
-                       'warn_collisions':True,
-                       'warn_overwrite':True,
-                       'warn_delete':True,}
-
-DEFAULT_MOVEMENT_KEYBINDS = {'a': ['left', 100],
-                             'd': ['right', 100],
-                             'f': ['dorsal', 100],
-                             'c': ['ventral', 100],
-                             'w': ['anterior', 100],
-                             's': ['posterior', 100],
-                             'h': ['home', 0],
-         
-                             'Ctrl+a': ['left', 10],
-                             'Ctrl+d': ['right', 10],
-                             'Ctrl+f': ['dorsal', 10],
-                             'Ctrl+c': ['ventral', 10],
-                             'Ctrl+w': ['anterior', 10],
-                             'Ctrl+s': ['posterior', 10],
-         
-                             'Shift+a': ['rotate left', 5],
-                             'Shift+d': ['rotate right', 5],
-                             'Shift+w': ['tilt down', 5],
-                             'Shift+s': ['tilt up', 5],
-
-                             'Ctrl+Shift+a': ['rotate left', 1],
-                             'Ctrl+Shift+d': ['rotate right', 1],
-                             'Ctrl+Shift+w': ['tilt down', 1],
-                             'Ctrl+Shift+s': ['tilt up', 1],
-                             
-                             'q': ['spin left', 5],
-                             'e': ['spin right', 5],
-
-                             'Ctrl+q': ['spin left', 1],
-                             'Ctrl+e': ['spin right', 1],
-         
-                             'Shift+f': ['retract', 100],
-                             'Shift+c': ['advance', 100],
-                             'Ctrl+Shift+f': ['retract', 10],
-                             'Ctrl+Shift+c': ['advance', 10],}
-
-DEFAULT_STATIC_KEYBINDS = {'Ctrl+o': 'open_experiment',
-                           #'Ctrl+s': 'save',
-                           #'Ctrl+Shift+s': 'save as',
-                           #'Ctrl+Shift+o': 'open',
-                           #'Ctrl+e': 'export',
-                           #'Ctrl+Shift+e': 'export as',
-                           'n': 'next_probe',
-                           'p': 'previous_probe',}
-
-ALL_PREFS = [DEFAULT_PREFERENCES, DEFAULT_MOVEMENT_KEYBINDS, DEFAULT_STATIC_KEYBINDS]
-                           
-         
-
+def __fix_json_indent(text):
+    import re
+    return  re.sub('{"', '{\n"', re.sub('\[\[', '[\n[', re.sub('\]\]', ']\n]', re.sub('}', '\n}', text))))
 
 def __setup_prefs():
     if not EXPERIMENT_DIR.exists():
@@ -110,7 +55,13 @@ def __load_prefs():
         if k not in prefs.keys():
             static_keybinds[k] = DEFAULT_STATIC_KEYBINDS[k]
 
-    return prefs, movement_keybinds, static_keybinds
+    with open(PROBE_GEOMETRIES_FILE,'r') as fd:
+        probe_geometries = json.load(fd)
+    for k in DEFAULT_PROBE_GEOMETRIES:
+        if k not in prefs.keys():
+            probe_geometries[k] = DEFAULT_PROBE_GEOMETRIES[k]
+
+    return prefs, movement_keybinds, static_keybinds, probe_geometries
 
 def list_experiments():
     raise NotImplementedError
@@ -127,9 +78,6 @@ def save_experiment(probes, atlas, filepath):
                            vvasp_commit_version = git_commit_hash,)
     with open(Path(filepath),'w') as fd:
         json.dump(experiment_data, fd, sort_keys=False, indent=4)
-
-def export_experiment(probes, atlas, filepath):
-    raise NotImplementedError()
 
 
 def load_experiment_file(filepath):
@@ -152,4 +100,4 @@ def load_structure_mesh(atlaspath,structures,acronym):
 if not PREFS_FILE.exists():
     __setup_prefs()
 
-preferences, movement_keybinds, static_keybinds = __load_prefs()
+preferences, movement_keybinds, static_keybinds, probe_geometries = __load_prefs()
