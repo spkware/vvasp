@@ -1,5 +1,6 @@
 from .utils import *
-from .BaseVizClasses import VVASPBaseVisualizerClass, Probe
+from .io import probe_geometries
+from .BaseVizClasses import VVASPBaseVisualizerClass, AbstractBaseProbe
 
 class CustomMeshObject(VVASPBaseVisualizerClass):
     """
@@ -29,7 +30,32 @@ class CustomMeshObject(VVASPBaseVisualizerClass):
             meshes.append(pv.read(p).scale(self.scale_factor))
         self.meshes = meshes
 
-class Neuropixels2_4Shank(Probe):
+class Probe(AbstractBaseProbe):
+    def __init__(self,
+                 probetype,
+                 vistaplotter,
+                 starting_position=(0,0,0),
+                 starting_angles=(0,0,0),
+                 active=True,
+                 ray_trace_intersection=True,
+                 intersection_meshes=None):
+        geometry_data = probe_geometries[probetype]
+        self.name = geometry_data['full_name']
+        self.shank_offsets_um = geometry_data['shank_offsets_um'] # the offsets of the shanks in um
+        self.shank_dims_um = geometry_data['shank_dims_um'] # the dimensions of one shank in um
+        super().__init__(vistaplotter, starting_position, starting_angles, active, ray_trace_intersection, intersection_meshes)
+    
+    def create_meshes(self):
+        meshes = []
+        for dims, offset in zip(self.shank_dims_um, self.shank_offsets_um):
+            shank_vectors = np.array([[dims[0],dims[1],0], #the orthogonal set of vectors used to define a rectangle, these will be translated and rotated about the tip
+                                      [dims[0],0,0],
+                                      [0,0,dims[2]]])
+            vecs = shank_vectors + np.array(offset).T
+            meshes.append(pv.Rectangle(vecs))
+        self.meshes = meshes
+
+class Neuropixels2_4Shank(AbstractBaseProbe):
     PROBE_OFFSETS_UM = (-410,-160,90,340) # the offsets of the shanks in um
     SHANK_DIMS_UM = np.array([70,-10_000,0]) # the dimensions of one shank in um
     def __init__(self,
@@ -52,7 +78,7 @@ class Neuropixels2_4Shank(Probe):
             meshes.append(pv.Rectangle(vecs))
         self.meshes = meshes
 
-class Neuropixels1(Probe):
+class Neuropixels1(AbstractBaseProbe):
     PROBE_OFFSET_UM = -35 # the offsets of the shanks in um
     SHANK_DIMS_UM = np.array([70,-10_000,0]) # the dimensions of one shank in um
     def __init__(self,
@@ -72,7 +98,7 @@ class Neuropixels1(Probe):
         vecs = shank_vectors + np.array([self.PROBE_OFFSET_UM,0,0]).T
         self.meshes = [pv.Rectangle(vecs)]
 
-class Neuropixels2Chronic(CustomMeshObject, Probe):
+class Neuropixels2Chronic(CustomMeshObject, AbstractBaseProbe):
     pass
     #raise NotImplementedError("This class is not yet implemented")
     # This class will implement the chronic holder as an example of how we can use the CustomMeshObject class

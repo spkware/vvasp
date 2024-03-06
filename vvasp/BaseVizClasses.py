@@ -159,7 +159,7 @@ class VVASPBaseVisualizerClass(ABC):
             self.plotter.remove_actor(actor)
         self.plotter.update()
     
-class Probe(VVASPBaseVisualizerClass):
+class AbstractBaseProbe(VVASPBaseVisualizerClass):
     """Another abstract class that extends the base visualizer a bit to include some probe specific logic
     (like calculating the brain-surface entry point, computing depth, intersecting brain regions, etc.)
     
