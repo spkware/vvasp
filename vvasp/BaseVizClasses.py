@@ -1,4 +1,3 @@
-from tkinter import W
 from vvasp.probe import SPHERE_RADIUS
 from .utils import *
 import pyvista as pv 
@@ -258,8 +257,3 @@ class Probe(VVASPBaseVisualizerClass):
                                     ML=entry_point[0],
                                     DV=entry_point[2]),
                     depth_along_probe_axis=self.depth)
-
-
-if __name__=='__main__':
-    p = pv.Plotter()
-    f = VVASPBaseVisualizerClass(p, 1, [0,0,0], [0,0,0])

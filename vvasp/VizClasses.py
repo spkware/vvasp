@@ -1,6 +1,5 @@
 from .utils import *
 from .BaseVizClasses import VVASPBaseVisualizerClass, Probe
-from pyvista import read as pvread
 
 class CustomMeshObject(VVASPBaseVisualizerClass):
     """
@@ -11,12 +10,14 @@ class CustomMeshObject(VVASPBaseVisualizerClass):
     def __init__(self,
                  mesh_paths,
                  vistaplotter,
+                 scale_factor=1.0,
                  pyvista_mesh_args=None, # a list of dicts with keyword arguments for pv.read()
                  starting_position=(0,0,0),
                  starting_angles=(0,0,0),
                  active=True,):
         self.name = "CustomMeshObject"
         self.mesh_paths = mesh_paths
+        self.scale_factor = scale_factor
         super().__init__(vistaplotter, starting_position, starting_angles, active,)
 
     def create_meshes(self):
@@ -25,7 +26,7 @@ class CustomMeshObject(VVASPBaseVisualizerClass):
         # TODO: define a new origin for the mesh 
         meshes = []
         for p in self.mesh_paths:
-            meshes.append(pvread(p))
+            meshes.append(pv.read(p).scale(self.scale_factor))
         self.meshes = meshes
 
 class Neuropixels2_4Shank(Probe):
@@ -39,7 +40,7 @@ class Neuropixels2_4Shank(Probe):
                  ray_trace_intersection=True,
                  intersection_meshes=None):
         self.name = "Neuropixels2.0 - 4Shank"
-        super().__init__(vistaplotter, starting_position, starting_angles, active)
+        super().__init__(vistaplotter, starting_position, starting_angles, active, ray_trace_intersection, intersection_meshes)
     
     def create_meshes(self):
         shank_vectors = np.array([[self.SHANK_DIMS_UM[0],self.SHANK_DIMS_UM[1],0], #the orthogonal set of vectors used to define a rectangle, these will be translated and rotated about the tip
@@ -48,15 +49,28 @@ class Neuropixels2_4Shank(Probe):
         meshes = []
         for offset in self.PROBE_OFFSETS_UM:
             vecs = shank_vectors + np.array([offset,0,0]).T
-            #vecs = shank_vectors
             meshes.append(pv.Rectangle(vecs))
         self.meshes = meshes
 
-#class Neuropixels1(Probe):
-#    def __init__(self):
-#        raise NotImplementedError("This class is not yet implemented")
-#    def create_meshes(self):
-#        raise NotImplementedError("This class is not yet implemented")
+class Neuropixels1(Probe):
+    PROBE_OFFSET_UM = -35 # the offsets of the shanks in um
+    SHANK_DIMS_UM = np.array([70,-10_000,0]) # the dimensions of one shank in um
+    def __init__(self,
+                 vistaplotter,
+                 starting_position=(0,0,0),
+                 starting_angles=(0,0,0),
+                 active=True,
+                 ray_trace_intersection=True,
+                 intersection_meshes=None):
+        self.name = "Neuropixels1.0"
+        super().__init__(vistaplotter, starting_position, starting_angles, active, ray_trace_intersection, intersection_meshes)
+    
+    def create_meshes(self):
+        shank_vectors = np.array([[self.SHANK_DIMS_UM[0],self.SHANK_DIMS_UM[1],0], #the orthogonal set of vectors used to define a rectangle, these will be translated and rotated about the tip
+                                  [self.SHANK_DIMS_UM[0],0,0],
+                                  [0,0,self.SHANK_DIMS_UM[2]]])
+        vecs = shank_vectors + np.array([self.PROBE_OFFSET_UM,0,0]).T
+        self.meshes = [pv.Rectangle(vecs)]
 
 class Neuropixels2Chronic(CustomMeshObject, Probe):
     pass
