@@ -167,19 +167,15 @@ class Probe(VVASPBaseVisualizerClass):
     This class can be used in conjunction with the CustomMeshObject or any other custom mesh logic defined in pyvista
     to visualize arbitrary probe geometries in the vvasp scene."""
     def __init__(self,
-                 mesh_paths,
                  vistaplotter,
                  starting_position=(0,0,0),
                  starting_angles=(0,0,0),
                  active=True,
                  ray_trace_intersection=True,
                  root_intersection_mesh=None):
-        self.mesh_paths = mesh_paths
-        super().__init__(vistaplotter, starting_position, starting_angles, active)
+
         self.entry_point = None
-
         self.root_intersection_mesh = root_intersection_mesh # a pyvista mesh to calculate the intersection point (usually the root of an atlas) 
-
         if ray_trace_intersection and root_intersection_mesh is None:
             self.ray_trace_intersection = False #if no atlas mesh is passed, we cant ray trace the insertion
         else:
@@ -190,8 +186,11 @@ class Probe(VVASPBaseVisualizerClass):
         #the following mesh and actor are used to visualize the brain surface entry point
         #they are the result of a ray trace from the probe origin to the brain surface and obey unique logic
         #thus we will handle them separately from the other meshes
-        self.ball_mesh = pv.Sphere(center=self.origin.astype(np.float32), radius=SPHERE_RADIUS)
-        self.ball_actor = self.plotter.add_mesh(self.ball_mesh, color='blue')
+        self.ball_mesh = pv.Sphere(center=np.array(starting_position).astype(np.float32), radius=SPHERE_RADIUS)
+        self.ball_actor = vistaplotter.add_mesh(self.ball_mesh, color='blue')
+
+        super().__init__(vistaplotter, starting_position, starting_angles, active)
+
     
     def __ray_trace_intersection(self):
         init_vector = (self.rotation_matrix @ INIT_VEC)
@@ -212,19 +211,19 @@ class Probe(VVASPBaseVisualizerClass):
     
     def _move(self, position_shift, increment=True):
         super()._move(position_shift, increment)
-        if self.ray_trace_insertion:
+        if self.ray_trace_intersection:
                 self.__ray_trace_intersection()
         else:
             self.ball_mesh.shallow_copy(pv.Sphere(center=self.origin, radius=SPHERE_RADIUS))
     
     def _rotate(self, angle_shift, increment=True):
         super()._rotate(angle_shift, increment)
-        if self.ray_trace_insertion:
+        if self.ray_trace_intersection:
                 self.__ray_trace_intersection()
         else:
             self.ball_mesh.shallow_copy(pv.Sphere(center=self.origin, radius=SPHERE_RADIUS))
     
-    def return_passing_regions(self, brainglobe_atlas, resolution=20):
+    def xyz_locations(self, resolution=1):
         # returns a list of the brain regions that each shank (mesh) passes through
         #TODO: return the brain regions that each shank (mesh passes thru)
         # this could require ray tracing for speed, rather than an intersection
