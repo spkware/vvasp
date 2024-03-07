@@ -1,5 +1,6 @@
 import numpy as np
 import subprocess
+from functools import partial
 import pandas as pd
 import pyvista as pv
 import sys

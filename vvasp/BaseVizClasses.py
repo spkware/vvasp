@@ -1,4 +1,3 @@
-from vvasp.probe import SPHERE_RADIUS
 from .utils import *
 import pyvista as pv 
 from abc import ABC, abstractmethod
@@ -36,6 +35,11 @@ class VVASPBaseVisualizerClass(ABC):
             self.make_active()
         else:
             self.make_inactive()
+    
+    @property
+    @abstractmethod
+    def name():
+        pass
     
     @abstractmethod
     def create_meshes(self) -> list[pv.PolyData]:
@@ -132,11 +136,11 @@ class VVASPBaseVisualizerClass(ABC):
             assert len(position_shift) == 3,ValueError('Position has to be 3 values') 
             old_position = np.array(self.origin)
             self.origin[:] = position_shift 
-            position_shift = position_shift - old_position #TODO: verify this works
-        
+            position_shift = position_shift - old_position
         # move the meshes
         for i,mesh in enumerate(self.meshes):
             mesh.shallow_copy(mesh.translate(position_shift))
+        self.plotter.update()
     
     def _rotate(self, angle_shift, increment=True):
         if increment:
@@ -145,14 +149,15 @@ class VVASPBaseVisualizerClass(ABC):
             assert len(angle_shift) == 3, ValueError('Angle has to be 3 values') 
             old_angles = np.array(self.angles)
             self.angles[:] = angle_shift 
-            angle_shift = angle_shift - old_angles #TODO: verify this works
-            
         # rotate the meshes
-        self.rotation_matrix = rotation_matrix_from_degrees(*angle_shift)
+        old_rotation_matrix = self.rotation_matrix
+        self.rotation_matrix = rotation_matrix_from_degrees(*self.angles)
         for i,mesh in enumerate(self.meshes):
             #rotations are performed in "probe space" so we need to shift the mesh to (0,0,0), rotate, then shift back
-            mesh.points = (self.rotation_matrix.T @ (mesh.points.T - np.expand_dims(self.origin,1))).T + self.origin
+            points = old_rotation_matrix.T @ (mesh.points - self.origin).T
+            mesh.points = (self.rotation_matrix @ points).T + self.origin
             mesh.shallow_copy(mesh)
+        self.plotter.update()
     
     def __del__(self):
         for actor in self.actors:
@@ -196,7 +201,7 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
         self.intersection_vector = init_vector + self.origin
         start = self.origin.astype(np.float32)
         end = self.intersection_vector.astype(np.float32)
-        points = self.atlas_root_mesh.ray_trace(start, end)[0]
+        points = self.root_intersection_mesh.ray_trace(start, end)[0]
 
         if points.shape[0] == 1:
             self.entry_point = points[0,:].flatten()
@@ -214,6 +219,7 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
                 self.__ray_trace_intersection()
         else:
             self.ball_mesh.shallow_copy(pv.Sphere(center=self.origin, radius=SPHERE_RADIUS))
+        self.plotter.update()
     
     def _rotate(self, angle_shift, increment=True):
         super()._rotate(angle_shift, increment)
@@ -221,6 +227,7 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
                 self.__ray_trace_intersection()
         else:
             self.ball_mesh.shallow_copy(pv.Sphere(center=self.origin, radius=SPHERE_RADIUS))
+        self.plotter.update()
     
     def xyz_locations(self, resolution=1):
         # returns a list of the brain regions that each shank (mesh) passes through

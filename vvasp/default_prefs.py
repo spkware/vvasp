@@ -64,8 +64,9 @@ DEFAULT_STATIC_KEYBINDS = {'Ctrl+o': 'open_experiment',
                            #'Ctrl+Shift+o': 'open',
                            #'Ctrl+e': 'export',
                            #'Ctrl+Shift+e': 'export as',
-                           'n': 'next_probe',
-                           'p': 'previous_probe',}
+                           'n': 'next_object',
+                           'p': 'previous_object',
+                           'Del': 'delete_object',}
 
 __utah10x10coords, __utah10x10dims = get_blackrock_array_geometry(10, 10, pitch_um=400, shank_dims=[30, -1000, 0])
 

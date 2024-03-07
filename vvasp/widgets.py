@@ -1,7 +1,6 @@
-from fileinput import filename
 from matplotlib.artist import get
 from .utils import *
-from .probe import *
+from . import VizClasses
 from . import io
 from . import atlas_utils 
 
@@ -58,8 +57,8 @@ class VVASP(QMainWindow):
         self.filename = filename
         self.setWindowTitle('VVASP')
         self.resize(VVASP.DEFAULT_WIDTH,VVASP.DEFAULT_HEIGHT)
-        self.probes = []
-        self.active_probe = None
+        self.objects = []
+        self.active_object = None
         self.visible_regions = []
 
         self.vlayout = QVBoxLayout()
@@ -110,8 +109,6 @@ class VVASP(QMainWindow):
         toolbar.addAction('Camera')
         # TODO: build this out with the camera functionality of the BackgroundPlotter
 
-        
-    
     def _init_menubar(self):
         self.menubar = self.menuBar()
         self.fileMenu = self.menubar.addMenu('File')
@@ -121,14 +118,17 @@ class VVASP(QMainWindow):
         self.fileMenu.addAction('Save experiment as',self._save_experiment_as)
         self.fileMenu.addAction('Screenshot',self._screenshot)
         self.fileMenu.addAction('Quit',self.close)
-        self.probeMenu = self.menubar.addMenu('Probe')
-        for p in VAILD_PROBETYPES:
-            self.probeMenu.addAction(f'Add Probe: {p}', lambda probe_type=p: self.new_probe(probe_type))
-        #self.probeMenu.addAction('Remove Active Probe',self.probes[self.active_probe].remove_probe)
-        self.probeMenu.addAction('Next Probe',self.next_probe)
-        self.probeMenu.addAction('Previous Probe',self.previous_probe)
-        self.probeMenu
+
+        self.probeMenu = self.menubar.addMenu('Objects')
+        for object_name, class_to_call in VizClasses.availible_viz_classes_for_gui.items():
+            self.probeMenu.addAction(f'Add Object: {object_name}', lambda object_name=object_name, object_class=class_to_call: self.new_object(object_name, object_class))
+        self.probeMenu.addAction('Remove Active Object',self.delete_object)
+        self.probeMenu.addAction('Next Object',self.next_object)
+        self.probeMenu.addAction('Previous Object',self.previous_object)
     
+        self.probeMenu = self.menubar.addMenu('Atlas')
+        # TODO: add atlas functionality here
+
     def _init_probe_position_box(self):
         self.probe_position_box = QGroupBox('Probe Position')
         xyzlabels = ['AP','ML','DV','Depth (along probe axis)']
@@ -193,7 +193,7 @@ class VVASP(QMainWindow):
             angles = [self.xangline.value(),self.yangline.value(),self.zangline.value()]
             origin = [self.yline.value(),self.xline.value(),self.depthline.value()]
             # try to update if changed
-            #self.probes[self.active_probe].set_location(origin,angles)
+            #self.objects[self.active_object].set_location(origin,angles)
         #for q in [self.xangline,self.yangline,self.zangline,
         #      self.xline,self.yline]:
         #      q.valueChanged.connect(_on_value_changed)
@@ -229,7 +229,7 @@ class VVASP(QMainWindow):
             self._disconnect_shortcuts()
         for shortcut, (direction,multiplier) in self.dynamic_shortcuts.items():
             def _shortcut_handler_function(d=direction, m=multiplier):
-                self.probes[self.active_probe].move(d, m) # connect the function to move the probe
+                self.objects[self.active_object].move(d, m) # connect the function to move the probe
                 self._update_probe_position_text() # update the text box with the new position
             func = lambda d=direction,m=multiplier:_shortcut_handler_function(d,m)
             shortcut.activated.connect(func)
@@ -285,20 +285,28 @@ class VVASP(QMainWindow):
         for r in experiment_data['atlas']['visible_regions']:
             self.atlas.add_atlas_region_mesh(r)
         self._update_atlas_view_box()
-        if len(self.probes) > 0:
+        if len(self.objects) > 0:
             self._disconnect_shortcuts()
-        self.probes = []
+        self.objects = []
         for i,p in enumerate(experiment_data['probes']):
             angles = [p['angles']['elevation'], p['angles']['spin'], p['angles']['azimuth']]
             origin = [p['tip']['ML'], p['tip']['AP'], p['tip']['DV']]
-            self.probes.append(Probe(self.plotter,
-                                     p['probetype'],
-                                     origin,
-                                     angles,
-                                     p['active'],
-                                     atlas_root_mesh=self.atlas.meshes['root']))
+            cls = VizClasses.availible_viz_classes_for_gui[p['probetype']]
+            if cls == VizClasses.Probe:
+                self.objects.append(cls(p['probetype'],
+                                   self.plotter,
+                                   origin,
+                                   angles,
+                                   p['active'],
+                                   root_intersection_mesh=self.atlas.meshes['root']))
+            else:
+                self.objects.append(cls(self.plotter,
+                                   origin,
+                                   angles,
+                                   p['active'],
+                                   root_intersection_mesh=self.atlas.meshes['root']))
             if p['active']:
-                self.active_probe = i
+                self.active_object = i
         self._update_probe_position_text()
         self._update_shortcut_actions(disconnect_existing=False)
         self.plotter.update()
@@ -307,11 +315,11 @@ class VVASP(QMainWindow):
         reply = QMessageBox.question(self, 'Confirm new experiment', "Are you sure you want to create a new experiment? This will clear all probes and the atlas and erase unsaved data.", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if reply == QMessageBox.No:
             return
-        if len(self.probes) > 0:
+        if len(self.objects) > 0:
             self._disconnect_shortcuts()
-        self.probes = []
+        self.objects = []
         self.atlas = atlas_utils.Atlas(self.plotter, min_tree_depth=8, max_tree_depth=8) #TODO: allow the user to update tree depth
-        self.active_probe = None
+        self.active_object = None
         self.filename = None
         self._update_atlas_view_box()
         #self._update_probe_position_text()
@@ -320,7 +328,7 @@ class VVASP(QMainWindow):
         if self.filename is None:
             self._save_experiment_as()
         else:
-            io.save_experiment(self.probes, self.atlas, Path(io.preferences['default_save_dir']) / self.filename)
+            io.save_experiment(self.objects, self.atlas, Path(io.preferences['default_save_dir']) / self.filename)
     
     def _screenshot(self):
         filename = QFileDialog.getSaveFileName(self, 'Save screenshot', str(io.preferences['default_save_dir']), filter='*.png')[0]
@@ -332,52 +340,66 @@ class VVASP(QMainWindow):
         filename = QFileDialog.getSaveFileName(self, 'Save file', str(io.preferences['default_save_dir']), filter='*.json')[0]
         if filename: # handle the case where the user cancels the save dialog
             self.filename = filename
-            io.save_experiment(self.probes, self.atlas, io.EXPERIMENT_DIR / self.filename)
+            io.save_experiment(self.objects, self.atlas, io.EXPERIMENT_DIR / self.filename)
     
     def _export_experiment_as(self):
         filename = QFileDialog.getSaveFileName(self, 'Save file', str(io.EXPERIMENT_DIR), filter='*.txt')[0]
         if filename: # handle the case where the user cancels the save dialog
             self.filename = filename
-            io.export_experiment(self.probes, self.atlas, io.EXPERIMENT_DIR / self.filename)
+            io.export_experiment(self.objects, self.atlas, io.EXPERIMENT_DIR / self.filename)
      
     def contextMenuEvent(self, e):
         context = QMenu(self)
-        for p in VAILD_PROBETYPES.keys():
-            action = QAction(f'Add object: {p}', self)
-            action.triggered.connect(lambda checked, probe_type=p: self.new_probe(probe_type))
+        for object_name, class_to_call in VizClasses.availible_viz_classes_for_gui.items():
+            action = QAction(f'Add object: {object_name}', self)
+            func = partial(self.new_object, object_name, class_to_call)
+            action.triggered.connect(func)
             context.addAction(action)
         context.exec(e.globalPos())
     
-    def new_probe(self, probe_type):
+    def new_object(self, object_name, object_class):
         zero_position = [[0,0,0], [-90,0,0]]
-        new_p = Probe(self.plotter, probe_type, *zero_position, atlas_root_mesh=self.atlas.meshes['root']) # the probe object will handle rendering here
-        self.probes.append(new_p)
-        active_probe = len(self.probes) - 1
-        self.update_active_probe(active_probe)
+        if object_class == VizClasses.Probe:
+            new_object = VizClasses.Probe(object_name, self.plotter, *zero_position, active=True, ray_trace_intersection=True, root_intersection_mesh=self.atlas.meshes['root'])
+        else:
+            new_object = object_class(self.plotter, *zero_position, active=True, ray_trace_intersection=True, root_intersection_mesh=self.atlas.meshes['root'])
+        self.objects.append(new_object)
+        active_object = len(self.objects) - 1
+        self.update_active_object(active_object)
+
+    def next_object(self):
+        if len(self.objects) > 0:
+            self.update_active_object((self.active_object + 1) % len(self.objects))
     
-    def next_probe(self):
-        if len(self.probes) > 0:
-            self.update_active_probe((self.active_probe + 1) % len(self.probes))
+    def previous_object(self):
+        if len(self.objects) > 0:
+            self.update_active_object((self.active_object - 1) % len(self.objects))
     
-    def previous_probe(self):
-        if len(self.probes) > 0:
-            self.update_active_probe((self.active_probe - 1) % len(self.probes))
+    def delete_object(self): # Todo: verify this works
+        if len(self.objects) > 0:
+            self.objects.pop(self.active_object)
+            if len(self.objects) > 0:
+                self.update_active_object(0)
+            else:
+                self.active_object = None
+                self._update_probe_position_text()
+                self._disconnect_shortcuts()
     
-    def update_active_probe(self, active_probe):
-        self.active_probe = active_probe
-        for (i,prb) in enumerate(self.probes):
-            if self.active_probe == i:
+    def update_active_object(self, active_object):
+        self.active_object = active_object
+        for (i,prb) in enumerate(self.objects):
+            if self.active_object == i:
                 prb.make_active() #this recolors the mesh
             else:
                 prb.make_inactive()
         self._update_probe_position_text()
-        if len(self.probes) > 1:
+        if len(self.objects) > 1:
             self._update_shortcut_actions(disconnect_existing=True)
         else:
             self._update_shortcut_actions(disconnect_existing=False)
     
     def _update_probe_position_text(self):
-        prb = self.probes[self.active_probe]
+        prb = self.objects[self.active_object]
         self.show_entrypoint=True #FIXME: this is a hack to show the entrypoint for the time being
         if self.show_entrypoint:
             if prb.entry_point is not None:

@@ -8,15 +8,15 @@ class CustomMeshObject(VVASPBaseVisualizerClass):
     into the pyvista scene. The base class handles the logic for moving the mesh, making it active, etc.
 
     """
+    name = "CustomMeshObject"
     def __init__(self,
                  mesh_paths,
                  vistaplotter,
-                 scale_factor=1.0,
+                 scale_factor=1000.0, # units of pyvista frame are um, but most meshes are in mm
                  pyvista_mesh_args=None, # a list of dicts with keyword arguments for pv.read()
                  starting_position=(0,0,0),
                  starting_angles=(0,0,0),
                  active=True,):
-        self.name = "CustomMeshObject"
         self.mesh_paths = mesh_paths
         self.scale_factor = scale_factor
         super().__init__(vistaplotter, starting_position, starting_angles, active,)
@@ -31,6 +31,7 @@ class CustomMeshObject(VVASPBaseVisualizerClass):
         self.meshes = meshes
 
 class Probe(AbstractBaseProbe):
+    name = "Probe"
     def __init__(self,
                  probetype,
                  vistaplotter,
@@ -38,12 +39,12 @@ class Probe(AbstractBaseProbe):
                  starting_angles=(0,0,0),
                  active=True,
                  ray_trace_intersection=True,
-                 intersection_meshes=None):
+                 root_intersection_mesh=None):
         geometry_data = probe_geometries[probetype]
-        self.name = geometry_data['full_name']
+        self.probetype = probetype
         self.shank_offsets_um = geometry_data['shank_offsets_um'] # the offsets of the shanks in um
         self.shank_dims_um = geometry_data['shank_dims_um'] # the dimensions of one shank in um
-        super().__init__(vistaplotter, starting_position, starting_angles, active, ray_trace_intersection, intersection_meshes)
+        super().__init__(vistaplotter, starting_position, starting_angles, active, ray_trace_intersection, root_intersection_mesh)
     
     def create_meshes(self):
         meshes = []
@@ -52,12 +53,13 @@ class Probe(AbstractBaseProbe):
                                       [dims[0],0,0],
                                       [0,0,dims[2]]])
             vecs = shank_vectors + np.array(offset).T
-            meshes.append(pv.Rectangle(vecs))
+            meshes.append(pv.Rectangle(vecs.astype(np.float32)))
         self.meshes = meshes
 
 class Neuropixels2_4Shank(AbstractBaseProbe):
     PROBE_OFFSETS_UM = (-410,-160,90,340) # the offsets of the shanks in um
     SHANK_DIMS_UM = np.array([70,-10_000,0]) # the dimensions of one shank in um
+    name = "Neuropixels2.0 - 4Shank"
     def __init__(self,
                  vistaplotter,
                  starting_position=(0,0,0),
@@ -65,7 +67,6 @@ class Neuropixels2_4Shank(AbstractBaseProbe):
                  active=True,
                  ray_trace_intersection=True,
                  intersection_meshes=None):
-        self.name = "Neuropixels2.0 - 4Shank"
         super().__init__(vistaplotter, starting_position, starting_angles, active, ray_trace_intersection, intersection_meshes)
     
     def create_meshes(self):
@@ -81,6 +82,7 @@ class Neuropixels2_4Shank(AbstractBaseProbe):
 class Neuropixels1(AbstractBaseProbe):
     PROBE_OFFSET_UM = -35 # the offsets of the shanks in um
     SHANK_DIMS_UM = np.array([70,-10_000,0]) # the dimensions of one shank in um
+    name = "Neuropixels1.0"
     def __init__(self,
                  vistaplotter,
                  starting_position=(0,0,0),
@@ -88,7 +90,6 @@ class Neuropixels1(AbstractBaseProbe):
                  active=True,
                  ray_trace_intersection=True,
                  intersection_meshes=None):
-        self.name = "Neuropixels1.0"
         super().__init__(vistaplotter, starting_position, starting_angles, active, ray_trace_intersection, intersection_meshes)
     
     def create_meshes(self):
@@ -99,22 +100,45 @@ class Neuropixels1(AbstractBaseProbe):
         self.meshes = [pv.Rectangle(vecs)]
 
 class Neuropixels2Chronic(CustomMeshObject, AbstractBaseProbe):
-    pass
+    name = "NP2 w/ chronic holder"
+    def __init__(self):
+        pass
     #raise NotImplementedError("This class is not yet implemented")
     # This class will implement the chronic holder as an example of how we can use the CustomMeshObject class
     # to handle moving meshes around and how to implement new funcitonality if desired.
 
 class CranialWindow5mm(VVASPBaseVisualizerClass):
-    pass
-    #raise NotImplementedError("This class is not yet implemented")
+    name = "Cranial Window - 5mm"
+    def __init__(self):
+        pass
 
 class HistologyTrack(VVASPBaseVisualizerClass): # Maybe extend Probe class instead?
     # TODO: no movement, just a static mesh
-    pass
-    #raise NotImplementedError("This class is not yet implemented")
+    name = "Histology Track"
+    def __init__(self):
+        pass
 
 class Neuron(VVASPBaseVisualizerClass):
-    pass
-    #raise NotImplementedError("This class is not yet implemented")
+    name = "Neuron"
+    def __init__(self):
+        pass
 
-     
+
+def get_classes():
+    import inspect
+    current_module = sys.modules[__name__]
+    classes = {}
+    for name, obj in inspect.getmembers(current_module):
+        if inspect.isclass(obj) and inspect.getmodule(obj) == current_module:
+            classes.update({obj.name: obj})
+    classes.pop('Probe')
+    for prbname in probe_geometries.keys():
+        classes.update({prbname: Probe})
+    return classes
+
+availible_viz_classes_for_gui = {'CustomMeshObject': CustomMeshObject, #objects availible to the PyQt GUI
+                                 'NP24': Probe,
+                                 'NP1': Probe,
+                                 'utah10x10': Probe,
+                                 'NP2 w/ chronic holder': Neuropixels2Chronic,
+                                 'Cranial Window - 5mm': CranialWindow5mm,}
