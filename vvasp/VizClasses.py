@@ -55,50 +55,6 @@ class Probe(AbstractBaseProbe):
             vecs = shank_vectors + np.array(offset).T
             meshes.append(pv.Rectangle(vecs.astype(np.float32)))
         self.meshes = meshes
-
-class Neuropixels2_4Shank(AbstractBaseProbe):
-    PROBE_OFFSETS_UM = (-410,-160,90,340) # the offsets of the shanks in um
-    SHANK_DIMS_UM = np.array([70,-10_000,0]) # the dimensions of one shank in um
-    name = "Neuropixels2.0 - 4Shank"
-    def __init__(self,
-                 vistaplotter,
-                 starting_position=(0,0,0),
-                 starting_angles=(0,0,0),
-                 active=True,
-                 ray_trace_intersection=True,
-                 intersection_meshes=None):
-        super().__init__(vistaplotter, starting_position, starting_angles, active, ray_trace_intersection, intersection_meshes)
-    
-    def create_meshes(self):
-        shank_vectors = np.array([[self.SHANK_DIMS_UM[0],self.SHANK_DIMS_UM[1],0], #the orthogonal set of vectors used to define a rectangle, these will be translated and rotated about the tip
-                                  [self.SHANK_DIMS_UM[0],0,0],
-                                  [0,0,self.SHANK_DIMS_UM[2]]])
-        meshes = []
-        for offset in self.PROBE_OFFSETS_UM:
-            vecs = shank_vectors + np.array([offset,0,0]).T
-            meshes.append(pv.Rectangle(vecs))
-        self.meshes = meshes
-
-class Neuropixels1(AbstractBaseProbe):
-    PROBE_OFFSET_UM = -35 # the offsets of the shanks in um
-    SHANK_DIMS_UM = np.array([70,-10_000,0]) # the dimensions of one shank in um
-    name = "Neuropixels1.0"
-    def __init__(self,
-                 vistaplotter,
-                 starting_position=(0,0,0),
-                 starting_angles=(0,0,0),
-                 active=True,
-                 ray_trace_intersection=True,
-                 intersection_meshes=None):
-        super().__init__(vistaplotter, starting_position, starting_angles, active, ray_trace_intersection, intersection_meshes)
-    
-    def create_meshes(self):
-        shank_vectors = np.array([[self.SHANK_DIMS_UM[0],self.SHANK_DIMS_UM[1],0], #the orthogonal set of vectors used to define a rectangle, these will be translated and rotated about the tip
-                                  [self.SHANK_DIMS_UM[0],0,0],
-                                  [0,0,self.SHANK_DIMS_UM[2]]])
-        vecs = shank_vectors + np.array([self.PROBE_OFFSET_UM,0,0]).T
-        self.meshes = [pv.Rectangle(vecs)]
-
 class Neuropixels2Chronic(CustomMeshObject, AbstractBaseProbe):
     name = "NP2 w/ chronic holder"
     def __init__(self):
