@@ -264,3 +264,6 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
                                     ML=entry_point[0],
                                     DV=entry_point[2]),
                     depth_along_probe_axis=self.depth)
+    def __del__(self):
+        self.plotter.remove_actor(self.ball_actor)
+        super().__del__()

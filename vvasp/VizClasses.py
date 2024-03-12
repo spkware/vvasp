@@ -55,6 +55,7 @@ class Probe(AbstractBaseProbe):
             vecs = shank_vectors + np.array(offset).T
             meshes.append(pv.Rectangle(vecs.astype(np.float32)))
         self.meshes = meshes
+
 class Neuropixels2Chronic(CustomMeshObject, AbstractBaseProbe):
     name = "NP2 w/ chronic holder"
     def __init__(self):

@@ -60,6 +60,7 @@ class VVASP(QMainWindow):
         self.objects = []
         self.active_object = None
         self.visible_regions = []
+        self.shortcuts_connected = False
 
         self.vlayout = QVBoxLayout()
         # TODO: Make this work with QDockWidget.
@@ -223,6 +224,7 @@ class VVASP(QMainWindow):
     def _disconnect_shortcuts(self):
         for shortcut in self.dynamic_shortcuts.keys():
             shortcut.activated.disconnect()
+        self.shortcuts_connected = False
 
     def _update_shortcut_actions(self, disconnect_existing=True): # rebind the actions when a new probe is active
         if disconnect_existing: #handle case where no probe is active yet
@@ -233,6 +235,7 @@ class VVASP(QMainWindow):
                 self._update_probe_position_text() # update the text box with the new position
             func = lambda d=direction,m=multiplier:_shortcut_handler_function(d,m)
             shortcut.activated.connect(func)
+        self.shortcuts_connected = True
             
     def _init_atlas_view_box(self):
         self.atlas_view_box = QGroupBox(f'Atlas View: {io.preferences["atlas"]}')
@@ -368,11 +371,11 @@ class VVASP(QMainWindow):
         self.update_active_object(active_object)
 
     def next_object(self):
-        if len(self.objects) > 0:
+        if len(self.objects) > 1:
             self.update_active_object((self.active_object + 1) % len(self.objects))
     
     def previous_object(self):
-        if len(self.objects) > 0:
+        if len(self.objects) > 1:
             self.update_active_object((self.active_object - 1) % len(self.objects))
     
     def delete_object(self): # Todo: verify this works
@@ -393,13 +396,23 @@ class VVASP(QMainWindow):
             else:
                 prb.make_inactive()
         self._update_probe_position_text()
-        if len(self.objects) > 1:
+        if self.shortcuts_connected:
             self._update_shortcut_actions(disconnect_existing=True)
         else:
             self._update_shortcut_actions(disconnect_existing=False)
     
     def _update_probe_position_text(self):
-        prb = self.objects[self.active_object]
+        if len(self.objects) == 0: #handle case with no objects present
+            self.xline.setValue(0)
+            self.yline.setValue(0) 
+            self.zline.setValue(0)
+            self.depthline.setValue(0)
+            self.xangline.setValue(0) 
+            self.yangline.setValue(0) 
+            self.zangline.setValue(0)
+            return
+        else:
+            prb = self.objects[self.active_object]
         self.show_entrypoint=True #FIXME: this is a hack to show the entrypoint for the time being
         if self.show_entrypoint:
             if prb.entry_point is not None:
