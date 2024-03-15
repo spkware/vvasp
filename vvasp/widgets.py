@@ -361,7 +361,7 @@ class VVASP(QMainWindow):
         context.exec(e.globalPos())
     
     def new_object(self, object_name, object_class):
-        zero_position = [[0,0,0], [-90,0,0]]
+        zero_position = [[0,0,0], [90,0,0]]
         if object_class == VizClasses.Probe:
             new_object = VizClasses.Probe(object_name, self.plotter, *zero_position, active=True, ray_trace_intersection=True, root_intersection_mesh=self.atlas.meshes['root'])
         else:

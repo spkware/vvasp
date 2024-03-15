@@ -81,17 +81,17 @@ class Neuron(VVASPBaseVisualizerClass):
         pass
 
 
-def get_classes():
-    import inspect
-    current_module = sys.modules[__name__]
-    classes = {}
-    for name, obj in inspect.getmembers(current_module):
-        if inspect.isclass(obj) and inspect.getmodule(obj) == current_module:
-            classes.update({obj.name: obj})
-    classes.pop('Probe')
-    for prbname in probe_geometries.keys():
-        classes.update({prbname: Probe})
-    return classes
+#def get_classes():
+#    import inspect
+#    current_module = sys.modules[__name__]
+#    classes = {}
+#    for name, obj in inspect.getmembers(current_module):
+#        if inspect.isclass(obj) and inspect.getmodule(obj) == current_module:
+#            classes.update({obj.name: obj})
+#    classes.pop('Probe')
+#    for prbname in probe_geometries.keys():
+#        classes.update({prbname: Probe})
+#    return classes
 
 availible_viz_classes_for_gui = {'CustomMeshObject': CustomMeshObject, #objects availible to the PyQt GUI
                                  'NP24': Probe,

@@ -72,16 +72,16 @@ __utah10x10coords, __utah10x10dims = get_blackrock_array_geometry(10, 10, pitch_
 
 DEFAULT_PROBE_GEOMETRIES = {'NP1': {'full_name': 'Neuropixels 1.0',
                                     'shank_offsets_um': [[-35, 0, 0]], # the offsets from the probe origin
-                                    'shank_dims_um': [[70, -10000, 0]]}, # dimensions of the shank in um [x, y, z]
+                                    'shank_dims_um': [[70, 10000, 0]]}, # dimensions of the shank in um [x, y, z]
                             'NP24': {'full_name': 'Neuropixels 2.0 - 4Shank',
                                      'shank_offsets_um': [[-410, 0, 0], 
                                                           [-160, 0, 0],
                                                           [90, 0, 0],
                                                           [340, 0, 0]], 
-                                     'shank_dims_um': [[70, -10000, 0],
-                                                       [70, -10000, 0],
-                                                       [70, -10000, 0],
-                                                       [70, -10000, 0]]},
+                                     'shank_dims_um': [[70, 10000, 0],
+                                                       [70, 10000, 0],
+                                                       [70, 10000, 0],
+                                                       [70, 10000, 0]]},
                             'utah10x10': {'full_name': 'Utah Array 1043-29 (10 x 10)',
                                      'shank_offsets_um': __utah10x10coords,
                                      'shank_dims_um': __utah10x10dims},}

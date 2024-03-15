@@ -71,7 +71,8 @@ def update_prefs():
     raise NotImplementedError
 
 def save_experiment(probes, atlas, filepath):
-    git_commit_hash = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip() # save the version of VVASP this file was created with
+    git_commit_hash = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'],
+                                              cwd=Path(__file__).resolve().parent).decode('ascii').strip() # save the version of VVASP this file was created with
 
     experiment_data = dict(probes = [probe.probe_properties for probe in probes],
                            atlas = atlas.atlas_properties,

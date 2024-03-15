@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 ACTIVE_COLOR = '#FF0000'
 INACTIVE_COLOR = '#000000'
 SPHERE_RADIUS = 50
-INIT_VEC = np.array([0,-10_000,0]) # just has to be long enough to intersect the brain surface
+INIT_VEC = np.array([0, 10_000,0]) # just has to be long enough to intersect the brain surface
 
 class VVASPBaseVisualizerClass(ABC):
     """
@@ -57,6 +57,7 @@ class VVASPBaseVisualizerClass(ABC):
         for mesh in self.meshes:
             actors.append(self.plotter.add_mesh(mesh))
         self.actors=actors
+        self.plotter.update()
 
     def make_active(self):
         self.active = True
@@ -110,18 +111,18 @@ class VVASPBaseVisualizerClass(ABC):
                 angle_shift = np.array([0,0,-1]) * multiplier
                 self._rotate(angle_shift)
             case 'spin left':
-                angle_shift = np.array([0,-1,0]) * multiplier
+                angle_shift = np.array([0,1,0]) * multiplier
                 self._rotate(angle_shift)
             case 'spin right':
-                angle_shift = np.array([0,1,0]) * multiplier
+                angle_shift = np.array([0,-1,0]) * multiplier
                 self._rotate(angle_shift)
             
             case 'retract':
-                position_shift = -move3D(multiplier, *self.angles[[0,2]])
+                position_shift = move3D(multiplier, *self.angles[[0,2]])
                 self._move(position_shift.astype(int))
                 #self.__move(position_shift)
             case 'advance':
-                position_shift = move3D(multiplier, *self.angles[[0,2]])
+                position_shift = -move3D(multiplier, *self.angles[[0,2]])
                 self._move(position_shift.astype(int))
                 #self.__move(position_shift)
 
