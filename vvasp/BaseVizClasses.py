@@ -18,9 +18,12 @@ class VVASPBaseVisualizerClass(ABC):
                  vistaplotter,
                  starting_position=(0,0,0),
                  starting_angles=(0,0,0),
-                 active=True):
-        
+                 active=True,
+                 pyvista_mesh_args=None,): # a list of dicts with keyword arguments for plotter.add_mesh()
+        if pyvista_mesh_args is None:
+            pyvista_mesh_args = {}
         self.plotter = vistaplotter
+        self.pyvista_mesh_args = pyvista_mesh_args
         self.active = active
         #angles[2] = -angles[2] # rotation about z is inverted for probes
         #angles[0] = -angles[0] # rotation about x is inverted for probes
@@ -31,10 +34,7 @@ class VVASPBaseVisualizerClass(ABC):
         self.create_meshes()
         self.spawn_actors()
         self.set_location(np.array(starting_position),np.array(starting_angles))
-        if active:
-            self.make_active()
-        else:
-            self.make_inactive()
+        
     
     @property
     @abstractmethod
@@ -55,23 +55,11 @@ class VVASPBaseVisualizerClass(ABC):
         #add the actors to the plotter
         actors = []
         for mesh in self.meshes:
-            actors.append(self.plotter.add_mesh(mesh))
+            actors.append(self.plotter.add_mesh(mesh, **self.pyvista_mesh_args))
         self.actors=actors
         self.plotter.update()
 
-    def make_active(self):
-        self.active = True
-        for actor in self.actors:
-            #shnk.actor.prop.opacity = 1 #FIXME: opacity not working for some reason
-            actor.prop.color = ACTIVE_COLOR
-        self.plotter.update()
-
-    def make_inactive(self):
-        self.active = False
-        for actor in self.actors:
-            #shnk.actor.prop.opacity = .2
-            actor.prop.color = INACTIVE_COLOR
-        self.plotter.update()
+    
 
     def set_location(self,origin,angles):
         self._rotate(angles,increment = False)
@@ -196,6 +184,11 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
 
         super().__init__(vistaplotter, starting_position, starting_angles, active)
 
+        if active:
+            self.make_active()
+        else:
+            self.make_inactive()
+
     
     def __ray_trace_intersection(self):
         init_vector = (self.rotation_matrix @ INIT_VEC)
@@ -228,6 +221,20 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
                 self.__ray_trace_intersection()
         else:
             self.ball_mesh.shallow_copy(pv.Sphere(center=self.origin, radius=SPHERE_RADIUS))
+        self.plotter.update()
+
+    def make_active(self):
+        self.active = True
+        for actor in self.actors:
+            #shnk.actor.prop.opacity = 1 #FIXME: opacity not working for some reason
+            actor.prop.color = ACTIVE_COLOR
+        self.plotter.update()
+
+    def make_inactive(self):
+        self.active = False
+        for actor in self.actors:
+            #shnk.actor.prop.opacity = .2
+            actor.prop.color = INACTIVE_COLOR
         self.plotter.update()
     
     def xyz_locations(self, resolution=1):

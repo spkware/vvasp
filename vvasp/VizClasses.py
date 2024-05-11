@@ -14,12 +14,17 @@ class CustomMeshObject(VVASPBaseVisualizerClass):
                  vistaplotter,
                  scale_factor=1000.0, # units of pyvista frame are um, but most meshes are in mm
                  pyvista_mesh_args=None, # a list of dicts with keyword arguments for pv.read()
+                 mesh_origin=(0,0,0), # change this if the desired rotation point of the mesh is different from the origin of the mesh file
+                 mesh_rotation=(0,0,0), # change this to reorient the mesh in the scene if needed
                  starting_position=(0,0,0),
                  starting_angles=(0,0,0),
                  active=True,):
         self.mesh_paths = mesh_paths
         self.scale_factor = scale_factor
-        super().__init__(vistaplotter, starting_position, starting_angles, active,)
+        self.mesh_origin = mesh_origin
+        self.mesh_rotation = mesh_rotation
+        super().__init__(vistaplotter, starting_position, starting_angles, active, pyvista_mesh_args)
+
 
     def create_meshes(self):
         # Your mesh creation logic here
@@ -27,7 +32,12 @@ class CustomMeshObject(VVASPBaseVisualizerClass):
         # TODO: define a new origin for the mesh 
         meshes = []
         for p in self.mesh_paths:
-            meshes.append(pv.read(p).scale(self.scale_factor))
+            mesh = pv.read(p).scale(self.scale_factor)
+            mesh = mesh.translate(self.mesh_origin)
+            mesh = mesh.rotate_x(self.mesh_rotation[0])
+            mesh = mesh.rotate_y(self.mesh_rotation[1])
+            mesh = mesh.rotate_z(self.mesh_rotation[2])
+            meshes.append(mesh)
         self.meshes = meshes
 
 class Probe(AbstractBaseProbe):
