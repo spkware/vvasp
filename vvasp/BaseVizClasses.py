@@ -30,6 +30,8 @@ class VVASPBaseVisualizerClass(ABC):
         self.origin = np.array([0,0,0]) # we will move to starting_position later by calling set_location()
         self.angles = np.array([0,0,0])
         self.rotation_matrix = rotation_matrix_from_degrees(*self.angles)
+        self.meshes = []
+        self.actors = []
         
         self.create_meshes()
         self.spawn_actors()
@@ -53,10 +55,8 @@ class VVASPBaseVisualizerClass(ABC):
 
     def spawn_actors(self):
         #add the actors to the plotter
-        actors = []
         for mesh in self.meshes:
-            actors.append(self.plotter.add_mesh(mesh, **self.pyvista_mesh_args))
-        self.actors=actors
+            self.actors.append(self.plotter.add_mesh(mesh, **self.pyvista_mesh_args))
         self.plotter.update()
 
     

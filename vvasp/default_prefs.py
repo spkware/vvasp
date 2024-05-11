@@ -6,6 +6,7 @@ PROBE_GEOMETRIES_FILE = Path('~').expanduser() / 'vvasp' / 'probe_geometries.jso
 MOVEMENT_KEYBINDS_FILE = Path('~').expanduser() / 'vvasp' / 'movement_keybinds.json'
 STATIC_KEYBINDS_FILE = Path('~').expanduser() / 'vvasp' / 'static_keybinds.json'
 EXPERIMENT_DIR = Path('~').expanduser() / 'vvasp' / 'experiments'
+MESH_DIR = Path(__file__).resolve().parents[1] / 'meshes'
 EXPORT_DIR = Path('~').expanduser() / 'vvasp' / 'exports'
 ATLAS_DIR = Path('~').expanduser()/'.brainglobe'
 

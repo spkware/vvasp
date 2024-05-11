@@ -1,6 +1,6 @@
 from .utils import *
 from .io import probe_geometries
-from .BaseVizClasses import VVASPBaseVisualizerClass, AbstractBaseProbe
+from .BaseVizClasses import VVASPBaseVisualizerClass, AbstractBaseProbe, ACTIVE_COLOR, INACTIVE_COLOR
 
 class CustomMeshObject(VVASPBaseVisualizerClass):
     """
@@ -30,15 +30,15 @@ class CustomMeshObject(VVASPBaseVisualizerClass):
         # Your mesh creation logic here
         # TODO: add a way to define transformations
         # TODO: define a new origin for the mesh 
-        meshes = []
         for p in self.mesh_paths:
             mesh = pv.read(p).scale(self.scale_factor)
             mesh = mesh.translate(self.mesh_origin)
             mesh = mesh.rotate_x(self.mesh_rotation[0])
             mesh = mesh.rotate_y(self.mesh_rotation[1])
             mesh = mesh.rotate_z(self.mesh_rotation[2])
-            meshes.append(mesh)
-        self.meshes = meshes
+            #rotated_translation = rotation_matrix_from_degrees(*self.mesh_rotation).T @ self.mesh_origin # the translation of the mesh must be rotated into new axes
+            #mesh = mesh.translate(rotated_translation)
+            self.meshes.append(mesh)
 
 class Probe(AbstractBaseProbe):
     name = "Probe"
@@ -57,22 +57,78 @@ class Probe(AbstractBaseProbe):
         super().__init__(vistaplotter, starting_position, starting_angles, active, ray_trace_intersection, root_intersection_mesh)
     
     def create_meshes(self):
-        meshes = []
         for dims, offset in zip(self.shank_dims_um, self.shank_offsets_um):
             shank_vectors = np.array([[dims[0],dims[1],0], #the orthogonal set of vectors used to define a rectangle, these will be translated and rotated about the tip
                                       [dims[0],0,0],
                                       [0,0,dims[2]]])
             vecs = shank_vectors + np.array(offset).T
-            meshes.append(pv.Rectangle(vecs.astype(np.float32)))
-        self.meshes = meshes
+            self.meshes.append(pv.Rectangle(vecs.astype(np.float32)))
 
-class Neuropixels2Chronic(CustomMeshObject, AbstractBaseProbe):
+class Neuropixels2Chronic(AbstractBaseProbe):
     name = "NP2 w/ chronic holder"
-    def __init__(self):
-        pass
-    #raise NotImplementedError("This class is not yet implemented")
-    # This class will implement the chronic holder as an example of how we can use the CustomMeshObject class
-    # to handle moving meshes around and how to implement new funcitonality if desired.
+    def __init__(self,
+                 chassis_type,
+                 vistaplotter,
+                 starting_position=(0,0,0),
+                 starting_angles=(0,0,0),
+                 active=True,
+                 ray_trace_intersection=True,
+                 root_intersection_mesh=None):
+        probetype = 'NP24'
+        geometry_data = probe_geometries[probetype]
+        self.probetype = probetype
+        self.shank_offsets_um = geometry_data['shank_offsets_um'] # the offsets of the shanks in um
+        self.shank_dims_um = geometry_data['shank_dims_um'] # the dimensions of one shank in um
+        self.active_colors = []
+        self.inactive_colors = []
+
+        from .default_prefs import MESH_DIR
+        if chassis_type == 'head_fixed':
+            self.mesh_path = MESH_DIR / 'np2_head_fixed.stl'
+        elif chassis_type == 'freely_moving':
+            self.mesh_path = MESH_DIR / 'np2_freely_moving.stl'
+        else:
+            raise ValueError(f"chassis_type \"{chassis_type}\" not recognized.") 
+        super().__init__(vistaplotter, starting_position, starting_angles, active, ray_trace_intersection, root_intersection_mesh)
+    
+    def create_meshes(self):
+        scale_factor = 1000
+        mesh_rotation = np.array([180,0,90])
+        mesh_origin = -np.array([-30.399,-12.612, 16.973]) * 1000
+
+        mesh = pv.read(self.mesh_path).scale(scale_factor)
+        mesh = mesh.translate(mesh_origin)
+        mesh = mesh.rotate_x(mesh_rotation[0])
+        mesh = mesh.rotate_y(mesh_rotation[1])
+        mesh = mesh.rotate_z(mesh_rotation[2])
+        #rotated_translation = rotation_matrix_from_degrees(*self.mesh_rotation).T @ self.mesh_origin # the translation of the mesh must be rotated into new axes
+        #mesh = mesh.translate(rotated_translation)
+        self.meshes.append(mesh)
+        self.active_colors.append('gray')
+        self.inactive_colors.append('gray')
+
+        for dims, offset in zip(self.shank_dims_um, self.shank_offsets_um):
+            shank_vectors = np.array([[dims[0],dims[1],0], #the orthogonal set of vectors used to define a rectangle, these will be translated and rotated about the tip
+                                      [dims[0],0,0],
+                                      [0,0,dims[2]]])
+            vecs = shank_vectors + np.array(offset).T
+            self.meshes.append(pv.Rectangle(vecs.astype(np.float32)))
+            self.active_colors.append(ACTIVE_COLOR)
+            self.inactive_colors.append(INACTIVE_COLOR)
+    
+    def make_active(self):
+        self.active = True
+        for col,actor in zip(self.active_colors,self.actors):
+            #shnk.actor.prop.opacity = 1 #FIXME: opacity not working for some reason
+            actor.prop.color = col
+        self.plotter.update()
+
+    def make_inactive(self):
+        self.active = False
+        for col,actor in zip(self.inactive_colors,self.actors):
+            #shnk.actor.prop.opacity = .2
+            actor.prop.color = col
+        self.plotter.update()
 
 class CranialWindow5mm(VVASPBaseVisualizerClass):
     name = "Cranial Window - 5mm"

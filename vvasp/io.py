@@ -2,6 +2,7 @@ from .utils import *
 from .default_prefs import (ALL_PREFS, 
                             DEFAULT_PROBE_GEOMETRIES,
                             EXPERIMENT_DIR,
+                            MESH_DIR,
                             EXPORT_DIR,
                             ALL_PREF_FILES, 
                             PREFS_FILE, 
@@ -24,6 +25,10 @@ def __setup_prefs():
     if not EXPORT_DIR.exists():
         print(f'Creating export directory at {EXPORT_DIR}')
         EXPORT_DIR.mkdir()
+    
+    if not MESH_DIR.exists():
+        print(f'Creating mesh directory at {MESH_DIR}')
+        MESH_DIR.mkdir()
 
     if not PREFS_FILE.parent.exists():
         PREFS_FILE.parent.mkdir()
