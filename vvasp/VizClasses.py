@@ -93,7 +93,7 @@ class Neuropixels2Chronic(AbstractBaseProbe):
     
     def create_meshes(self):
         scale_factor = 1000
-        mesh_rotation = np.array([180,0,90])
+        mesh_rotation = np.array([0,0,90])
         mesh_origin = -np.array([-30.399,-12.612, 16.973]) * 1000
 
         mesh = pv.read(self.mesh_path).scale(scale_factor)
@@ -159,9 +159,11 @@ class Neuron(VVASPBaseVisualizerClass):
 #        classes.update({prbname: Probe})
 #    return classes
 
+from functools import partial
 availible_viz_classes_for_gui = {'CustomMeshObject': CustomMeshObject, #objects availible to the PyQt GUI
                                  'NP24': Probe,
                                  'NP1': Probe,
                                  'utah10x10': Probe,
-                                 'NP2 w/ chronic holder': Neuropixels2Chronic,
+                                 'NP2 chronic holder - head fixed': partial(Neuropixels2Chronic,'head_fixed'),
+                                 'NP2 chronic holder - freely moving': partial(Neuropixels2Chronic,'freely_moving'),
                                  'Cranial Window - 5mm': CranialWindow5mm,}
