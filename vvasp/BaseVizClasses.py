@@ -189,6 +189,30 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
         else:
             self.make_inactive()
 
+    def drive_probe_from_entry(self, ml_ap_entry, angles, depth):
+        # move the probe to a specific entry point and depth
+        # this is useful for driving the probe from a brain region entry point
+        # and depth along the probe axis
+        if self.root_intersection_mesh is None:
+            raise ValueError("No atlas is defined, can not drive probe from atlas entry point")
+
+        # 1) place the probe above the entry point
+        above_entrypoint = np.concatenate([np.array(ml_ap_entry), np.array([0])])
+        self.set_location(above_entrypoint, np.array(angles))
+        self.move('retract', 1000)
+
+        # 2) lower the probe to the entry point
+        # since we need to find the entry point and are above the target, ray trace the opposite direction to find mesh surface
+        init_vector = -(self.rotation_matrix @ INIT_VEC)
+        self.intersection_vector = init_vector + self.origin
+        start = self.origin.astype(np.float32)
+        end = self.intersection_vector.astype(np.float32)
+        intersection_points = self.root_intersection_mesh.ray_trace(start, end)[0]
+        entry_point = intersection_points[np.argmax(intersection_points[:,2]),:].flatten()
+        self.set_location(entry_point, angles)
+
+        # 3) advance the probe to the desired depth
+        self.move('advance', depth)
     
     def __ray_trace_intersection(self):
         init_vector = (self.rotation_matrix @ INIT_VEC)
