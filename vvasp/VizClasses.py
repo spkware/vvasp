@@ -99,7 +99,7 @@ class NeuropixelsChronicHolder(AbstractBaseProbe):
         scale_factor = 1000
         if self.probetype == 'NP24':
             mesh_rotation = np.array([0,0,90])
-            mesh_origin = -np.array([-30.399,-12.612, 16.973]) * 1000
+            mesh_origin = -np.array([-32.399,-12.612, 16.973]) * 1000
         elif self.probetype == 'NP1':
             mesh_rotation = np.array([-90,0,0])
             mesh_origin = -np.array([-.081, 1.978, -9.762]) * 1000
