@@ -64,9 +64,10 @@ class Probe(AbstractBaseProbe):
             vecs = shank_vectors + np.array(offset).T
             self.meshes.append(pv.Rectangle(vecs.astype(np.float32)))
 
-class Neuropixels2Chronic(AbstractBaseProbe):
+class NeuropixelsChronicHolder(AbstractBaseProbe):
     name = "NP2 w/ chronic holder"
     def __init__(self,
+                 probetype,
                  chassis_type,
                  vistaplotter,
                  starting_position=(0,0,0),
@@ -74,7 +75,6 @@ class Neuropixels2Chronic(AbstractBaseProbe):
                  active=True,
                  ray_trace_intersection=True,
                  root_intersection_mesh=None):
-        probetype = 'NP24'
         geometry_data = probe_geometries[probetype]
         self.probetype = probetype
         self.shank_offsets_um = geometry_data['shank_offsets_um'] # the offsets of the shanks in um
@@ -83,25 +83,33 @@ class Neuropixels2Chronic(AbstractBaseProbe):
         self.inactive_colors = []
 
         from .default_prefs import MESH_DIR
-        if chassis_type == 'head_fixed':
+        if chassis_type == 'head_fixed' and probetype == 'NP24':
             self.mesh_path = MESH_DIR / 'np2_head_fixed.stl'
-        elif chassis_type == 'freely_moving':
+        elif chassis_type == 'freely_moving' and probetype == 'NP24':
             self.mesh_path = MESH_DIR / 'np2_freely_moving.stl'
+        elif chassis_type == 'head_fixed' and probetype == 'NP1':
+            self.mesh_path = MESH_DIR / 'np1_head_fixed.stl'
+        elif chassis_type == 'freely_moving' and probetype == 'NP1':
+            self.mesh_path = MESH_DIR / 'np1_freely_moving.stl'
         else:
             raise ValueError(f"chassis_type \"{chassis_type}\" not recognized.") 
         super().__init__(vistaplotter, starting_position, starting_angles, active, ray_trace_intersection, root_intersection_mesh)
     
     def create_meshes(self):
         scale_factor = 1000
-        mesh_rotation = np.array([0,0,90])
-        mesh_origin = -np.array([-30.399,-12.612, 16.973]) * 1000
+        if self.probetype == 'NP24':
+            mesh_rotation = np.array([0,0,90])
+            mesh_origin = -np.array([-30.399,-12.612, 16.973]) * 1000
+        elif self.probetype == 'NP1':
+            mesh_rotation = np.array([-90,0,0])
+            mesh_origin = -np.array([-.081, 1.978, -9.762]) * 1000
 
         mesh = pv.read(self.mesh_path).scale(scale_factor)
         mesh = mesh.translate(mesh_origin)
         mesh = mesh.rotate_x(mesh_rotation[0])
         mesh = mesh.rotate_y(mesh_rotation[1])
         mesh = mesh.rotate_z(mesh_rotation[2])
-        #rotated_translation = rotation_matrix_from_degrees(*self.mesh_rotation).T @ self.mesh_origin # the translation of the mesh must be rotated into new axes
+        #rotated_translation = rotation_matrix_from_degrees(*mesh_rotation).T @ mesh_origin # the translation of the mesh must be rotated into new axes
         #mesh = mesh.translate(rotated_translation)
         self.meshes.append(mesh)
         self.active_colors.append('gray')
@@ -164,6 +172,8 @@ availible_viz_classes_for_gui = {'CustomMeshObject': CustomMeshObject, #objects 
                                  'NP24': Probe,
                                  'NP1': Probe,
                                  'utah10x10': Probe,
-                                 'NP2 chronic holder - head fixed': partial(Neuropixels2Chronic,'head_fixed'),
-                                 'NP2 chronic holder - freely moving': partial(Neuropixels2Chronic,'freely_moving'),
+                                 'NP2 chronic holder - head fixed': partial(NeuropixelsChronicHolder,'NP24','head_fixed'),
+                                 'NP2 chronic holder - freely moving': partial(NeuropixelsChronicHolder,'NP24','freely_moving'),
+                                 'NP1 chronic holder - head fixed': partial(NeuropixelsChronicHolder,'NP1','head_fixed'),
+                                 'NP1 chronic holder - freely moving': partial(NeuropixelsChronicHolder,'NP1','freely_moving'),
                                  'Cranial Window - 5mm': CranialWindow5mm,}
