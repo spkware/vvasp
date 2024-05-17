@@ -22,6 +22,7 @@ class Atlas:
         #download the atlas if not present
         atlas_path = Path(io.preferences['atlas_dir']) / io.preferences['atlas']
         bg_atlas = BrainGlobeAtlas(atlas_name, check_latest=False)
+        self.bg_atlas = bg_atlas
         self.atlas_path = bg_atlas.brainglobe_dir / bg_atlas.local_full_name
         #show_atlases() # show all available atlases from BrainGlobe
 
@@ -80,14 +81,25 @@ class Atlas:
         if show_bregma:
             self.bregma_actor = self.plotter.add_mesh(io.pv.Sphere(radius=100, center=(0,0,0)))
 
-    def add_atlas_region_mesh(self, region_acronym):
+    def add_atlas_region_mesh(self, region_acronym, side='both', **pv_kwargs):
         if region_acronym in self.visible_region_actors.keys():
             return #don't replot the same region
-        actor = self.plotter.add_mesh(self.meshes[region_acronym], #make bregma the origin
+        m = self.meshes[region_acronym]
+        if side=='left':
+            m = m.clip(origin=(0,0,0), normal=(-1,0,0), invert=False, inplace=False)
+        elif side=='right':
+            m = m.clip(origin=(0,0,0), normal=(1,0,0), invert=False, inplace=False)
+        elif side=='both':
+            pass
+        else:
+            raise ValueError(f'Invalid side {side}')
+
+        actor = self.plotter.add_mesh(m,
                               color=self.meshcols[region_acronym],
                               opacity = 0.7,
                               render=False,
-                              silhouette=False)
+                              silhouette=False,
+                              **pv_kwargs)
         self.visible_region_actors.update({region_acronym: actor})
     
     def remove_atlas_region_mesh(self, region_acronym):
