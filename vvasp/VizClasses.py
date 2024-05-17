@@ -85,12 +85,16 @@ class NeuropixelsChronicHolder(AbstractBaseProbe):
         from .default_prefs import MESH_DIR
         if chassis_type == 'head_fixed' and probetype == 'NP24':
             self.mesh_path = MESH_DIR / 'np2_head_fixed.stl'
+            self.name = 'NP2 chronic holder - head fixed'
         elif chassis_type == 'freely_moving' and probetype == 'NP24':
             self.mesh_path = MESH_DIR / 'np2_freely_moving.stl'
+            self.name = 'NP2 chronic holder - freely moving'
         elif chassis_type == 'head_fixed' and probetype == 'NP1':
             self.mesh_path = MESH_DIR / 'np1_head_fixed.stl'
+            self.name = 'NP1 chronic holder - head fixed'
         elif chassis_type == 'freely_moving' and probetype == 'NP1':
             self.mesh_path = MESH_DIR / 'np1_freely_moving.stl'
+            self.name = 'NP1 chronic holder - freely moving'
         else:
             raise ValueError(f"chassis_type \"{chassis_type}\" not recognized.") 
         super().__init__(vistaplotter, starting_position, starting_angles, active, ray_trace_intersection, root_intersection_mesh)
@@ -169,9 +173,9 @@ class Neuron(VVASPBaseVisualizerClass):
 
 from functools import partial
 availible_viz_classes_for_gui = {'CustomMeshObject': CustomMeshObject, #objects availible to the PyQt GUI
-                                 'NP24': Probe,
-                                 'NP1': Probe,
-                                 'utah10x10': Probe,
+                                 'NP24': partial(Probe,'NP24'),
+                                 'NP1': partial(Probe,'NP1'),
+                                 'utah10x10': partial(Probe,'utah10x10'),
                                  'NP2 chronic holder - head fixed': partial(NeuropixelsChronicHolder,'NP24','head_fixed'),
                                  'NP2 chronic holder - freely moving': partial(NeuropixelsChronicHolder,'NP24','freely_moving'),
                                  'NP1 chronic holder - head fixed': partial(NeuropixelsChronicHolder,'NP1','head_fixed'),

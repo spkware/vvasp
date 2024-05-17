@@ -284,7 +284,7 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
         origin = self.origin.tolist()
         angles = self.angles.tolist()
         entry_point = self.entry_point.tolist() if self.entry_point is not None else [None,None,None]
-        return dict(probetype=self.probetype,
+        return dict(probetype=self.name,
                     active=self.active,
                     tip=dict(AP=origin[1],
                              ML=origin[0],
