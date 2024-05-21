@@ -196,17 +196,15 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
         if self.root_intersection_mesh is None:
             raise ValueError("No atlas is defined, can not drive probe from atlas entry point")
 
-        # 1) place the probe above the entry point
-        above_entrypoint = np.concatenate([np.array(ml_ap_entry), np.array([0])])
+        # 1) place the probe 1000um above the entry point
+        above_entrypoint = np.concatenate([np.array(ml_ap_entry), np.array([1000])])
         self.set_location(above_entrypoint, np.array(angles))
-        self.move('retract', 1000)
 
         # 2) lower the probe to the entry point
-        # since we need to find the entry point and are above the target, ray trace the opposite direction to find mesh surface
-        init_vector = -(self.rotation_matrix @ INIT_VEC)
-        self.intersection_vector = init_vector + self.origin
+        # since we need to find the entry point and are above the target, ray trace straight down to find mesh surface
+        STRAIGHT_DOWN_VECTOR = np.array([0, 0, -10_000])
+        end = STRAIGHT_DOWN_VECTOR + self.origin
         start = self.origin.astype(np.float32)
-        end = self.intersection_vector.astype(np.float32)
         intersection_points = self.root_intersection_mesh.ray_trace(start, end)[0]
         entry_point = intersection_points[np.argmax(intersection_points[:,2]),:].flatten()
         self.set_location(entry_point, angles)
