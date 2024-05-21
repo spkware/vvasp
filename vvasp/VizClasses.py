@@ -75,8 +75,8 @@ class NeuropixelsChronicHolder(AbstractBaseProbe):
                  active=True,
                  ray_trace_intersection=True,
                  root_intersection_mesh=None):
-        geometry_data = probe_geometries[probetype]
         self.probetype = probetype
+        geometry_data = probe_geometries[probetype.replace('4a','4')]
         self.shank_offsets_um = geometry_data['shank_offsets_um'] # the offsets of the shanks in um
         self.shank_dims_um = geometry_data['shank_dims_um'] # the dimensions of one shank in um
         self.active_colors = []
@@ -89,6 +89,12 @@ class NeuropixelsChronicHolder(AbstractBaseProbe):
         elif chassis_type == 'freely_moving' and probetype == 'NP24':
             self.mesh_path = MESH_DIR / 'np2_freely_moving.stl'
             self.name = 'NP2 chronic holder - freely moving'
+        elif chassis_type == 'head_fixed' and probetype == 'NP24a':
+            self.mesh_path = MESH_DIR / 'np2a_head_fixed.stl'
+            self.name = 'NP2a chronic holder - head fixed'
+        elif chassis_type == 'freely_moving' and probetype == 'NP24a':
+            self.mesh_path = MESH_DIR / 'np2a_freely_moving.stl'
+            self.name = 'NP2a chronic holder - freely moving'
         elif chassis_type == 'head_fixed' and probetype == 'NP1':
             self.mesh_path = MESH_DIR / 'np1_head_fixed.stl'
             self.name = 'NP1 chronic holder - head fixed'
@@ -96,7 +102,7 @@ class NeuropixelsChronicHolder(AbstractBaseProbe):
             self.mesh_path = MESH_DIR / 'np1_freely_moving.stl'
             self.name = 'NP1 chronic holder - freely moving'
         else:
-            raise ValueError(f"chassis_type \"{chassis_type}\" not recognized.") 
+            raise ValueError(f"chassis_type \"{chassis_type}\" or probetype \"{probetype}\" not recognized.") 
         super().__init__(vistaplotter, starting_position, starting_angles, active, ray_trace_intersection, root_intersection_mesh)
     
     def create_meshes(self):
@@ -107,6 +113,11 @@ class NeuropixelsChronicHolder(AbstractBaseProbe):
         elif self.probetype == 'NP1':
             mesh_rotation = np.array([-90,0,0])
             mesh_origin = -np.array([-.081, 1.978, -9.762]) * 1000
+        elif self.probetype == 'NP24a':
+            mesh_rotation = np.array([0,0,90])
+            mesh_origin = -np.array([-33.259, 2.768, -2.080]) * 1000
+        else:
+            raise ValueError(f"probetype \"{self.probetype}\" not recognized.")
 
         mesh = pv.read(self.mesh_path).scale(scale_factor)
         mesh = mesh.translate(mesh_origin)
@@ -178,6 +189,8 @@ availible_viz_classes_for_gui = {'CustomMeshObject': CustomMeshObject, #objects 
                                  'utah10x10': partial(Probe,'utah10x10'),
                                  'NP2 chronic holder - head fixed': partial(NeuropixelsChronicHolder,'NP24','head_fixed'),
                                  'NP2 chronic holder - freely moving': partial(NeuropixelsChronicHolder,'NP24','freely_moving'),
+                                 'NP2a chronic holder - head fixed': partial(NeuropixelsChronicHolder,'NP24a','head_fixed'),
+                                 'NP2a chronic holder - freely moving': partial(NeuropixelsChronicHolder,'NP24a','freely_moving'),
                                  'NP1 chronic holder - head fixed': partial(NeuropixelsChronicHolder,'NP1','head_fixed'),
                                  'NP1 chronic holder - freely moving': partial(NeuropixelsChronicHolder,'NP1','freely_moving'),
                                  'Cranial Window - 5mm': CranialWindow5mm,}
