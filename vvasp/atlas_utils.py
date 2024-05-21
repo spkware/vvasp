@@ -81,8 +81,8 @@ class Atlas:
         if show_bregma:
             self.bregma_actor = self.plotter.add_mesh(io.pv.Sphere(radius=100, center=(0,0,0)))
 
-    def add_atlas_region_mesh(self, region_acronym, side='both', **pv_kwargs):
-        if region_acronym in self.visible_region_actors.keys():
+    def add_atlas_region_mesh(self, region_acronym, side='both', force_replot=False, **pv_kwargs):
+        if region_acronym in self.visible_region_actors.keys() and not force_replot:
             return #don't replot the same region
         m = self.meshes[region_acronym]
         if side=='left':
@@ -93,7 +93,6 @@ class Atlas:
             pass
         else:
             raise ValueError(f'Invalid side {side}')
-
         actor = self.plotter.add_mesh(m,
                               color=self.meshcols[region_acronym],
                               opacity = 0.7,
