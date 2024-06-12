@@ -183,7 +183,7 @@ class Neuron(VVASPBaseVisualizerClass):
 #    return classes
 
 from functools import partial
-availible_viz_classes_for_gui = {'CustomMeshObject': CustomMeshObject, #objects availible to the PyQt GUI
+availible_viz_classes_for_gui = {'CustomMeshObject [NOT IMPLEMENTED]': CustomMeshObject, #objects availible to the PyQt GUI
                                  'NP24': partial(Probe,'NP24'),
                                  'NP1': partial(Probe,'NP1'),
                                  'utah10x10': partial(Probe,'utah10x10'),
@@ -193,4 +193,4 @@ availible_viz_classes_for_gui = {'CustomMeshObject': CustomMeshObject, #objects 
                                  'NP2a chronic holder - freely moving': partial(NeuropixelsChronicHolder,'NP24a','freely_moving'),
                                  'NP1 chronic holder - head fixed': partial(NeuropixelsChronicHolder,'NP1','head_fixed'),
                                  'NP1 chronic holder - freely moving': partial(NeuropixelsChronicHolder,'NP1','freely_moving'),
-                                 'Cranial Window - 5mm': CranialWindow5mm,}
+                                 'Cranial Window - 5mm [NOT IMPLEMENTED]': CranialWindow5mm,}

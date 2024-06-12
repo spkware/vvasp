@@ -76,7 +76,7 @@ class VVASP(QMainWindow):
         self.vistaframe.setLayout(self.vlayout)
         self.setCentralWidget(self.vistaframe)
 
-        self.atlas = atlas_utils.Atlas(self.plotter, min_tree_depth=8, max_tree_depth=8) #TODO: allow the user to update tree depth
+        self.atlas = atlas_utils.Atlas(self.plotter, min_tree_depth=6, max_tree_depth=8) #TODO: allow the user to update tree depth
 
         self.plotter.track_click_position(
             callback=lambda x: print(x,flush=True),
@@ -295,19 +295,11 @@ class VVASP(QMainWindow):
             angles = [p['angles']['elevation'], p['angles']['spin'], p['angles']['azimuth']]
             origin = [p['tip']['ML'], p['tip']['AP'], p['tip']['DV']]
             cls = VizClasses.availible_viz_classes_for_gui[p['probetype']]
-            if cls == VizClasses.Probe:
-                self.objects.append(cls(p['probetype'],
-                                   self.plotter,
-                                   origin,
-                                   angles,
-                                   p['active'],
-                                   root_intersection_mesh=self.atlas.meshes['root']))
-            else:
-                self.objects.append(cls(self.plotter,
-                                   origin,
-                                   angles,
-                                   p['active'],
-                                   root_intersection_mesh=self.atlas.meshes['root']))
+            self.objects.append(cls(self.plotter,
+                               origin,
+                               angles,
+                               p['active'],
+                               root_intersection_mesh=self.atlas.meshes['root']))
             if p['active']:
                 self.active_object = i
         self._update_probe_position_text()
