@@ -1,4 +1,5 @@
 from .utils import *
+import os
 from .default_prefs import (ALL_PREFS, 
                             DEFAULT_PROBE_GEOMETRIES,
                             EXPERIMENT_DIR,
@@ -87,6 +88,8 @@ def save_experiment(probes, atlas, filepath):
 
 
 def load_experiment_file(filepath):
+    if not os.path.exists(filepath):
+        return None
     with open(str(filepath),'r') as fd:
         experiment_data = json.load(fd)
     return experiment_data

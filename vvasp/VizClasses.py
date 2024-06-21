@@ -18,12 +18,13 @@ class CustomMeshObject(VVASPBaseVisualizerClass):
                  mesh_rotation=(0,0,0), # change this to reorient the mesh in the scene if needed
                  starting_position=(0,0,0),
                  starting_angles=(0,0,0),
-                 active=True,):
+                 active=True,
+                 **kwargs):
         self.mesh_paths = mesh_paths
         self.scale_factor = scale_factor
         self.mesh_origin = mesh_origin
         self.mesh_rotation = mesh_rotation
-        super().__init__(vistaplotter, starting_position, starting_angles, active, pyvista_mesh_args)
+        super().__init__(vistaplotter, starting_position, starting_angles, active, pyvista_mesh_args, **kwargs)
 
 
     def create_meshes(self):
@@ -49,12 +50,14 @@ class Probe(AbstractBaseProbe):
                  starting_angles=(0,0,0),
                  active=True,
                  ray_trace_intersection=True,
-                 root_intersection_mesh=None):
+                 root_intersection_mesh=None,
+                 **kwargs):
+        self.name = probetype
         geometry_data = probe_geometries[probetype]
         self.probetype = probetype
         self.shank_offsets_um = geometry_data['shank_offsets_um'] # the offsets of the shanks in um
         self.shank_dims_um = geometry_data['shank_dims_um'] # the dimensions of one shank in um
-        super().__init__(vistaplotter, starting_position, starting_angles, active, ray_trace_intersection, root_intersection_mesh)
+        super().__init__(vistaplotter, starting_position, starting_angles, active, ray_trace_intersection, root_intersection_mesh, **kwargs)
     
     def create_meshes(self):
         for dims, offset in zip(self.shank_dims_um, self.shank_offsets_um):
@@ -74,7 +77,8 @@ class NeuropixelsChronicHolder(AbstractBaseProbe):
                  starting_angles=(0,0,0),
                  active=True,
                  ray_trace_intersection=True,
-                 root_intersection_mesh=None):
+                 root_intersection_mesh=None,
+                 **kwargs):
         self.probetype = probetype
         geometry_data = probe_geometries[probetype.replace('4a','4')]
         self.shank_offsets_um = geometry_data['shank_offsets_um'] # the offsets of the shanks in um
@@ -103,7 +107,7 @@ class NeuropixelsChronicHolder(AbstractBaseProbe):
             self.name = 'NP1 chronic holder - freely moving'
         else:
             raise ValueError(f"chassis_type \"{chassis_type}\" or probetype \"{probetype}\" not recognized.") 
-        super().__init__(vistaplotter, starting_position, starting_angles, active, ray_trace_intersection, root_intersection_mesh)
+        super().__init__(vistaplotter, starting_position, starting_angles, active, ray_trace_intersection, root_intersection_mesh, **kwargs)
     
     def create_meshes(self):
         scale_factor = 1000

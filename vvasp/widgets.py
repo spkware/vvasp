@@ -280,6 +280,8 @@ class VVASP(QMainWindow):
         else:
             self.filename = filename
         experiment_data = io.load_experiment_file(self.filename)
+        if experiment_data is None:
+            return
         self.atlas = atlas_utils.Atlas(self.plotter,
                                        atlas_name=experiment_data['atlas']['name'],
                                        min_tree_depth=experiment_data['atlas']['min_tree_depth'],
@@ -354,10 +356,9 @@ class VVASP(QMainWindow):
     
     def new_object(self, object_name, object_class):
         zero_position = [[0,0,0], [90,0,0]]
-        if object_class == VizClasses.Probe:
-            new_object = VizClasses.Probe(object_name, self.plotter, *zero_position, active=True, ray_trace_intersection=True, root_intersection_mesh=self.atlas.meshes['root'])
-        else:
-            new_object = object_class(self.plotter, *zero_position, active=True, ray_trace_intersection=True, root_intersection_mesh=self.atlas.meshes['root'])
+        # TODO: show the savename of the selected probe in the gui
+        savename, _ = QInputDialog.getText(self, 'Input Dialog', 'Enter a name for this probe:') 
+        new_object = object_class(self.plotter, *zero_position, active=True, savename=savename, ray_trace_intersection=True, root_intersection_mesh=self.atlas.meshes['root'])
         self.objects.append(new_object)
         active_object = len(self.objects) - 1
         self.update_active_object(active_object)
