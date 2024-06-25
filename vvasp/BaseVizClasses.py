@@ -166,8 +166,8 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
                  active=True,
                  ray_trace_intersection=True,
                  root_intersection_mesh=None,
-                 savename=None):
-        self.savename = savename # used to save the probe properties to a file
+                 info=None):
+        self.info = info # used to save the probe properties to a file
         self.entry_point = None
         self.root_intersection_mesh = root_intersection_mesh # a pyvista mesh to calculate the intersection point (usually the root of an atlas) 
         if ray_trace_intersection and root_intersection_mesh is None:
@@ -284,7 +284,7 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
         angles = self.angles.tolist()
         entry_point = self.entry_point.tolist() if self.entry_point is not None else [None,None,None]
         return dict(probetype=self.name,
-                    info=self.savename,
+                    info=self.info,
                     active=self.active,
                     tip=dict(AP=origin[1],
                              ML=origin[0],
