@@ -18,7 +18,7 @@ class Atlas:
         self.initialize()
         
     def fetch_atlas(self, atlas_name, force_redownload=False):
-        from bg_atlasapi import BrainGlobeAtlas, show_atlases
+        from brainglobe_atlasapi import BrainGlobeAtlas, show_atlases
         #download the atlas if not present
         atlas_path = Path(io.preferences['atlas_dir']) / io.preferences['atlas']
         bg_atlas = BrainGlobeAtlas(atlas_name, check_latest=False)
