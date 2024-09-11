@@ -167,20 +167,20 @@ class VVASP(QMainWindow):
 
         self.angle_fields = QHBoxLayout()
         self.angle_fields.addWidget(QLabel(anglelabels[0]))
-        self.xangline = QDoubleSpinBox(minimum=-360,
-                                       maximum=360,
+        self.xangline = QDoubleSpinBox(minimum=-10000,
+                                       maximum=10000,
                                        decimals=0,
                                        singleStep=5)
         self.angle_fields.addWidget(self.xangline)
         self.angle_fields.addWidget(QLabel(anglelabels[1]))
-        self.yangline = QDoubleSpinBox(minimum=-360,
-                                       maximum=360,
+        self.yangline = QDoubleSpinBox(minimum=-10000,
+                                       maximum=10000,
                                        decimals=0,
                                        singleStep=5)
         self.angle_fields.addWidget(self.yangline)
         self.angle_fields.addWidget(QLabel(anglelabels[2]))
-        self.zangline = QDoubleSpinBox(minimum=-360,
-                                       maximum=360,
+        self.zangline = QDoubleSpinBox(minimum=-10000,
+                                       maximum=10000,
                                        decimals=0,
                                        singleStep=5)
         self.angle_fields.addWidget(self.zangline)
@@ -384,12 +384,21 @@ class VVASP(QMainWindow):
     
     def update_active_object(self, active_object):
         self.active_object = active_object
+
+        # change the object name that gets displayed
+        self.probe_position_box.setTitle(f'Probe Position: {self.objects[active_object].info}')
+       
+        # recolor the objects 
         for (i,prb) in enumerate(self.objects):
             if self.active_object == i:
                 prb.make_active() #this recolors the mesh
             else:
                 prb.make_inactive()
+        
+        # update the positon text
         self._update_probe_position_text()
+
+        # connect the shortcuts to the new active object
         if self.shortcuts_connected:
             self._update_shortcut_actions(disconnect_existing=True)
         else:
