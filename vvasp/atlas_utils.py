@@ -104,7 +104,7 @@ class Atlas:
     def remove_atlas_region_mesh(self, region_acronym):
         if region_acronym in self.visible_region_actors.keys():
             self.plotter.remove_actor(self.visible_region_actors[region_acronym])
-            #self.visible_region_actors.pop(region_acronym)
+            self.visible_region_actors.pop(region_acronym)
         else:
             print(f'No region {region_acronym} to remove')
     
