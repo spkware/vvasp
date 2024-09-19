@@ -50,7 +50,11 @@ from pyvistaqt import BackgroundPlotter, QtInteractor, MainWindow
 class VVASP(QMainWindow):
     DEFAULT_WIDTH = 2280
     DEFAULT_HEIGHT = 1520
-    def __init__(self,filename=None, atlas_name=None):
+    def __init__(self,
+                 filename=None,
+                 atlas_name=None,
+                 min_tree_depth=6,
+                 max_tree_depth=8):
         # filename will be letting you plot the same probes again
         # It'll be just a human readable JSON file.
         super(VVASP,self).__init__()
@@ -75,8 +79,8 @@ class VVASP(QMainWindow):
         
         self.vistaframe.setLayout(self.vlayout)
         self.setCentralWidget(self.vistaframe)
-
-        self.atlas = atlas_utils.Atlas(self.plotter, min_tree_depth=6, max_tree_depth=8) #TODO: allow the user to update tree depth
+        print(min_tree_depth,max_tree_depth,flush=True)
+        self.atlas = atlas_utils.Atlas(self.plotter, min_tree_depth=min_tree_depth, max_tree_depth=max_tree_depth) #TODO: allow the user to update tree depth
 
         self.plotter.track_click_position(
             callback=lambda x: print(x,flush=True),
@@ -316,7 +320,7 @@ class VVASP(QMainWindow):
         if len(self.objects) > 0:
             self._disconnect_shortcuts()
         self.objects = []
-        self.atlas = atlas_utils.Atlas(self.plotter, min_tree_depth=8, max_tree_depth=8) #TODO: allow the user to update tree depth
+        self.atlas = atlas_utils.Atlas(self.plotter, min_tree_depth=6, max_tree_depth=8) #TODO: allow the user to update tree depth
         self.active_object = None
         self.filename = None
         self._update_atlas_view_box()
