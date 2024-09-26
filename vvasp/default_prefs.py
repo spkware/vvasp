@@ -1,14 +1,14 @@
 
 from .utils import Path, get_blackrock_array_geometry
 
-PREFS_FILE = Path('~').expanduser() / 'vvasp' / 'preferences.json'
-PROBE_GEOMETRIES_FILE = Path('~').expanduser() / 'vvasp' / 'probe_geometries.json'
-MOVEMENT_KEYBINDS_FILE = Path('~').expanduser() / 'vvasp' / 'movement_keybinds.json'
-STATIC_KEYBINDS_FILE = Path('~').expanduser() / 'vvasp' / 'static_keybinds.json'
-EXPERIMENT_DIR = Path('~').expanduser() / 'vvasp' / 'experiments'
+PREFS_FILE = Path().home() / 'vvasp' / 'preferences.json'
+PROBE_GEOMETRIES_FILE = Path().home() / 'vvasp' / 'probe_geometries.json'
+MOVEMENT_KEYBINDS_FILE = Path().home() / 'vvasp' / 'movement_keybinds.json'
+STATIC_KEYBINDS_FILE = Path().home() / 'vvasp' / 'static_keybinds.json'
+EXPERIMENT_DIR = Path().home() / 'vvasp' / 'experiments'
 MESH_DIR = Path(__file__).resolve().parents[1] / 'meshes'
-EXPORT_DIR = Path('~').expanduser() / 'vvasp' / 'exports'
-ATLAS_DIR = Path('~').expanduser()/'.brainglobe'
+EXPORT_DIR = Path().home() / 'vvasp' / 'exports'
+ATLAS_DIR = Path().home() /'.brainglobe'
 
 
 ALL_PREF_FILES = [PREFS_FILE, MOVEMENT_KEYBINDS_FILE, STATIC_KEYBINDS_FILE, PROBE_GEOMETRIES_FILE]
