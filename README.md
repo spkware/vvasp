@@ -18,7 +18,9 @@ VVASP also includes a graphical user interface to facilitate planning for stereo
 ### GUI usage
 To run the trajectory planning gui, run ``vvasp`` from the terminal.
 
-Shortcuts for moving probes around can be found at `~/vvasp/movement_keybinds.json` and `~/vvasp/static_keybinds.json`. These files will be created the first time you run the vvasp gui. If alternate keybinds are desired, just directly edit these files. 
+Keyboard shortcuts for moving probes around can be found at `~/vvasp/movement_keybinds.json` and `~/vvasp/static_keybinds.json`. These files will be created the first time you run the vvasp gui. If alternate keybinds are desired, just directly edit these files. 
+
+__IMPORTANT:__ The buttons contained in the GUI don't work right now. Rather than clicking the buttons with the mouse or manually entering position values, use the keybinds to move the probes where you want.
 
 Currently, the GUI supports Neuropixels 1.0/2.0, 10x10 Utah, and Neuropixels chronic holders. In the future, it will support loading, viewing, and manipulating any user-provided mesh file.
 

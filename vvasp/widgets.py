@@ -79,7 +79,6 @@ class VVASP(QMainWindow):
         
         self.vistaframe.setLayout(self.vlayout)
         self.setCentralWidget(self.vistaframe)
-        print(min_tree_depth,max_tree_depth,flush=True)
         self.atlas = atlas_utils.Atlas(self.plotter, min_tree_depth=min_tree_depth, max_tree_depth=max_tree_depth) #TODO: allow the user to update tree depth
 
         self.plotter.track_click_position(
@@ -247,6 +246,10 @@ class VVASP(QMainWindow):
         self.atlas_view_box.setFixedWidth(300)
 
         layout = QHBoxLayout()
+        if hasattr(self,'atlas_list_widget'):
+            self.atlas_list_widget.clear()
+            self.layout().removeWidget(self.atlas_view_box)  # Remove from layout
+
         self.atlas_list_widget = QListWidget()
         self.atlas_list_widget.setSelectionMode(QListWidget.MultiSelection)
 
@@ -286,6 +289,7 @@ class VVASP(QMainWindow):
         experiment_data = io.load_experiment_file(self.filename)
         if experiment_data is None:
             return
+        print(experiment_data['atlas'], flush=True)
         self.atlas = atlas_utils.Atlas(self.plotter,
                                        atlas_name=experiment_data['atlas']['name'],
                                        min_tree_depth=experiment_data['atlas']['min_tree_depth'],
@@ -293,6 +297,8 @@ class VVASP(QMainWindow):
 
         for r in experiment_data['atlas']['visible_regions']:
             self.atlas.add_atlas_region_mesh(r)
+        del self.atlas_view_box
+        self._init_atlas_view_box()
         self._update_atlas_view_box()
         if len(self.objects) > 0:
             self._disconnect_shortcuts()
