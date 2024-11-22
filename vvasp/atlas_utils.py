@@ -7,7 +7,7 @@ def list_availible_atlases():
 class Atlas:
     def __init__(self, vistaplotter, atlas_name=None, min_tree_depth=3, max_tree_depth=7):
         if atlas_name is None:
-            atlas_name = io.preferences['atlas']
+            atlas_name = io.preferences['default_atlas']
         self.name = atlas_name
         self.plotter = vistaplotter
         self.visible_region_actors = {}
@@ -17,11 +17,10 @@ class Atlas:
         self.load_atlas_metadata(min_tree_depth, max_tree_depth)
         self.initialize()
         
-    def fetch_atlas(self, atlas_name, force_redownload=False):
+    def fetch_atlas(self, force_redownload=False):
         from brainglobe_atlasapi import BrainGlobeAtlas, show_atlases
         #download the atlas if not present
-        atlas_path = Path(io.preferences['atlas_dir']) / io.preferences['atlas']
-        bg_atlas = BrainGlobeAtlas(atlas_name, check_latest=False)
+        bg_atlas = BrainGlobeAtlas(self.name, check_latest=True)
         self.bg_atlas = bg_atlas
         self.atlas_path = bg_atlas.brainglobe_dir / bg_atlas.local_full_name
         #show_atlases() # show all available atlases from BrainGlobe
@@ -42,7 +41,8 @@ class Atlas:
         self.min_tree_depth = min_tree_depth
         self.max_tree_depth = max_tree_depth
         self.maxdepth = maxdepth
-        self.bregma_location = np.array(io.preferences['bregma_locations'][self.name])*metadata['resolution']
+        self.bregma_location = np.array(io.preferences['atlas_transformations'][self.name]['bregma_location'])*metadata['resolution']
+        print(self.bregma_location, flush=True)
         self.metadata = metadata
 
     def initialize(self, show_root=True, show_bregma=True):
@@ -64,10 +64,10 @@ class Atlas:
                 continue
         
             s[0].translate(-self.bregma_location, inplace=True) #make bregma the origin
-            s[0].rotate_y(90, point=axes.origin, inplace=True) # rotate the meshes so that [x,y,z] => [ML,AP,DV]
-            s[0].rotate_x(-90, point=axes.origin, inplace=True)
-            if rotate5deg:
-                s[0].rotate_x(5,point=axes.origin, inplace=True) # allenCCF has a 5 degree tilt
+            rotation_angles = -np.array(io.preferences['atlas_transformations'][self.name]['angles'])
+            s[0].rotate_x(rotation_angles[0], point=axes.origin, inplace=True)
+            s[0].rotate_y(rotation_angles[1], point=axes.origin, inplace=True) # rotate the meshes so that [x,y,z] => [ML,AP,DV]
+            s[0].rotate_z(rotation_angles[2], point=axes.origin, inplace=True) # rotate the meshes so that [x,y,z] => [ML,AP,DV]
             self.meshes[r] = s[0]
             self.meshcols[r] = s[1]['rgb_triplet']
         assert len(self.meshes) == len(self.structures)

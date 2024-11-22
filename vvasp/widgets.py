@@ -241,7 +241,7 @@ class VVASP(QMainWindow):
         self.shortcuts_connected = True
             
     def _init_atlas_view_box(self):
-        self.atlas_view_box = QGroupBox(f'Atlas View: {io.preferences["atlas"]}')
+        self.atlas_view_box = QGroupBox(f'Atlas View: {self.atlas.name}')
         self.atlas_view_box.setFixedHeight(300)
         self.atlas_view_box.setFixedWidth(300)
 

@@ -14,9 +14,15 @@ ATLAS_DIR = Path().home() /'.brainglobe'
 ALL_PREF_FILES = [PREFS_FILE, MOVEMENT_KEYBINDS_FILE, STATIC_KEYBINDS_FILE, PROBE_GEOMETRIES_FILE]
 
 
-DEFAULT_PREFERENCES = {'atlas':'allen_mouse_25um',
-                       'bregma_locations':{'allen_mouse_25um':[216, 18,228],
-                                           'whs_sd_rat_39um':[246, 653, 440],}, #FIXME: this is not true bregma for the rat atlas, just testing. The problem is possibly in the transformations of the atlas when it's loaded
+DEFAULT_PREFERENCES = {'default_atlas':'allen_mouse_25um',
+                       'atlas_transformations':
+                               {'allen_mouse_25um':
+                                       {'bregma_location':[216, 18,228],
+                                        'angles':[90, -5, 90]}, # -5 corrects for small tilt in the atlas
+                                'whs_sd_rat_39um':
+                                        {'bregma_location':[371, 72, 266],
+                                         'angles':[90, -4, 90]}, # -4 corrects for a small tilt in the atlas
+                               },
                        'default_save_dir':str(EXPERIMENT_DIR),
                        'atlas_dir':str(ATLAS_DIR), # the location of brainglobe atlas files
                        'warn_collisions':True,
