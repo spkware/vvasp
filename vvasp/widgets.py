@@ -51,14 +51,14 @@ class VVASP(QMainWindow):
     DEFAULT_WIDTH = 2280
     DEFAULT_HEIGHT = 1520
     def __init__(self,
-                 filename=None,
+                 experiment_file=None,
                  atlas_name=None,
                  min_tree_depth=6,
                  max_tree_depth=8):
         # filename will be letting you plot the same probes again
         # It'll be just a human readable JSON file.
         super(VVASP,self).__init__()
-        self.filename = filename
+        self.filename = experiment_file
         self.setWindowTitle('VVASP')
         self.resize(VVASP.DEFAULT_WIDTH,VVASP.DEFAULT_HEIGHT)
         self.objects = []
@@ -91,8 +91,8 @@ class VVASP(QMainWindow):
         self.initUI() 
         self.vlayout.addLayout(self.bottom_horizontal_widgets)
         self.show()
-        #if filename is not None: #TODO: implement CLI file load
-        #    io.load_experiment(filename)
+        if self.filename is not None:
+            self._load_experiment(self.filename)
     
     def initUI(self):
         self._init_menubar()

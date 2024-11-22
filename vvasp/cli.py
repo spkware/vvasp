@@ -9,26 +9,26 @@ def main():
     from argparse import ArgumentParser
     parser = ArgumentParser(
         description="Volume Visualization and Stereotaxic Planning")
-    parser.add_argument('--filename',
-                        metavar='filename',
+    parser.add_argument('-e','--experiment_file',
+                        metavar='filepath',
                         type=str,
-                        default=None, # TODO: write the help for this
+                        default=None,
                         nargs="?")
     
     parser.add_argument('--atlas_name',
                         metavar='atlas',
                         type=str,
-                        default=None, # TODO: write the help for this
+                        default=None,
                         nargs="?")
 
     parser.add_argument('--min_tree_depth',
                         type=int,
-                        default=6, # TODO: write the help for this
+                        default=6,
                         nargs="?")
 
     parser.add_argument('--max_tree_depth',
                         type=int,
-                        default=8, # TODO: write the help for this
+                        default=8,
                         nargs="?")
 
     opts = parser.parse_args()
