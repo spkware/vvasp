@@ -142,7 +142,8 @@ class VVASPBaseVisualizerClass(ABC):
         old_rotation_matrix = self.rotation_matrix
         self.rotation_matrix = rotation_matrix_from_degrees(*self.angles)
         for i,mesh in enumerate(self.meshes):
-            #rotations are performed in "probe space" so we need to shift the mesh to (0,0,0), rotate, then shift back
+            # rotations are performed relative to the objects origin, not the origin of the pyvista scene
+            # So we need to translate the mesh to the pyvista origin, rotate it, and then translate it back to its original spot
             points = old_rotation_matrix.T @ (mesh.points - self.origin).T
             mesh.points = (self.rotation_matrix @ points).T + self.origin
             mesh.shallow_copy(mesh)

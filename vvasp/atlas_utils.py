@@ -20,7 +20,7 @@ class Atlas:
     def fetch_atlas(self, force_redownload=False):
         from brainglobe_atlasapi import BrainGlobeAtlas, show_atlases
         #download the atlas if not present
-        bg_atlas = BrainGlobeAtlas(self.name, check_latest=True)
+        bg_atlas = BrainGlobeAtlas(self.name, check_latest=False)
         self.bg_atlas = bg_atlas
         self.atlas_path = bg_atlas.brainglobe_dir / bg_atlas.local_full_name
         #show_atlases() # show all available atlases from BrainGlobe
