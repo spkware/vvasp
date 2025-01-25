@@ -307,6 +307,8 @@ class VVASP(QMainWindow):
             angles = [p['angles']['elevation'], p['angles']['spin'], p['angles']['azimuth']]
             origin = [p['tip']['ML'], p['tip']['AP'], p['tip']['DV']]
             cls = VizClasses.availible_viz_classes_for_gui[p['probetype']]
+            if not 'info' in p.keys():
+                p['info'] = f'probe{i}'
             self.objects.append(cls(self.plotter,
                                origin,
                                angles,
