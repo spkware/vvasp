@@ -4,7 +4,10 @@ from .utils import *
 def list_availible_atlases():
     return [x.name for x in io.ATLAS_DIR.glob('*')]
 
-class Atlas:
+class VVASPAtlas:
+    ''' 
+    Wraps the brainglobe atlas (bg_atlas) to provide funcitonality for showing and hiding meshes
+    '''
     def __init__(self, vistaplotter, atlas_name=None, min_tree_depth=3, max_tree_depth=7):
         if atlas_name is None:
             atlas_name = io.preferences['default_atlas']

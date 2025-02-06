@@ -1,6 +1,7 @@
 from .utils import *
 import pyvista as pv 
 from abc import ABC, abstractmethod
+import ipdb
 
 ACTIVE_COLOR = '#FF0000'
 INACTIVE_COLOR = '#000000'
@@ -166,16 +167,17 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
                  starting_angles=(0,0,0),
                  active=True,
                  ray_trace_intersection=True,
-                 root_intersection_mesh=None,
+                 vvasp_atlas=None,
                  info=None):
         self.info = info # used to save the probe properties to a file
         self.entry_point = None
-        self.root_intersection_mesh = root_intersection_mesh # a pyvista mesh to calculate the intersection point (usually the root of an atlas) 
-        if ray_trace_intersection and root_intersection_mesh is None:
+        if not ray_trace_intersection or vvasp_atlas is None:
             self.ray_trace_intersection = False #if no atlas mesh is passed, we cant ray trace the insertion
         else:
             self.ray_trace_intersection = ray_trace_intersection
-        self.intersection_vector = None # an imaginary line from shank origin, used for calculating the intersection with brain surface
+            self.vvasp_atlas = vvasp_atlas
+            self.root_intersection_mesh = self.vvasp_atlas.meshes['root']
+        self.intersection_vector = None # an imaginary line from shank origin, used for calculating the intersection with regions and the brain surface
         self.intersection_point = None
 
         #the following mesh and actor are used to visualize the brain surface entry point
@@ -195,7 +197,7 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
         # move the probe to a specific entry point and depth
         # this is useful for driving the probe from a brain region entry point
         # and depth along the probe axis
-        if self.root_intersection_mesh is None:
+        if self.bg_atlas is None:
             raise ValueError("No atlas is defined, can not drive probe from atlas entry point")
 
         # 1) place the probe 1000um above the entry point
@@ -215,6 +217,7 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
         self.move('advance', depth)
     
     def __ray_trace_intersection(self):
+        # 1. Compute the intersection point with the brain surface and update the plotter
         init_vector = (self.rotation_matrix @ INIT_VEC)
         self.intersection_vector = init_vector + self.origin
         start = self.origin.astype(np.float32)
@@ -230,6 +233,11 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
         else:
             self.entry_point = None
             self.ball_mesh.shallow_copy(pv.Sphere(center=self.origin, radius=SPHERE_RADIUS))
+
+        # 2. compute the brain regions that the probe intersects
+        # TODO: optionally take a channelmap
+        NUM_SAMPLES = 100
+        self.intersection_vector = np.linspace(start, end, NUM_SAMPLES)
     
     def _move(self, position_shift, increment=True):
         super()._move(position_shift, increment)

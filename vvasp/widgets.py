@@ -1,4 +1,3 @@
-from matplotlib.artist import get
 from .utils import *
 from . import VizClasses
 from . import io
@@ -79,7 +78,7 @@ class VVASP(QMainWindow):
         
         self.vistaframe.setLayout(self.vlayout)
         self.setCentralWidget(self.vistaframe)
-        self.atlas = atlas_utils.Atlas(self.plotter, min_tree_depth=min_tree_depth, max_tree_depth=max_tree_depth) #TODO: allow the user to update tree depth
+        self.vvasp_atlas = atlas_utils.VVASPAtlas(self.plotter, min_tree_depth=min_tree_depth, max_tree_depth=max_tree_depth) #TODO: allow the user to update tree depth
 
         self.plotter.track_click_position(
             callback=lambda x: print(x,flush=True),
@@ -241,7 +240,7 @@ class VVASP(QMainWindow):
         self.shortcuts_connected = True
             
     def _init_atlas_view_box(self):
-        self.atlas_view_box = QGroupBox(f'Atlas View: {self.atlas.name}')
+        self.atlas_view_box = QGroupBox(f'Atlas View: {self.vvasp_atlas.name}')
         self.atlas_view_box.setFixedHeight(300)
         self.atlas_view_box.setFixedWidth(300)
 
@@ -253,7 +252,7 @@ class VVASP(QMainWindow):
         self.atlas_list_widget = QListWidget()
         self.atlas_list_widget.setSelectionMode(QListWidget.MultiSelection)
 
-        for acronym in self.atlas.all_atlas_regions:
+        for acronym in self.vvasp_atlas.all_atlas_regions:
             item = QListWidgetItem(acronym)
             item.setCheckState(0)  # 0 represents unchecked state 
             self.atlas_list_widget.addItem(item)
@@ -268,7 +267,7 @@ class VVASP(QMainWindow):
     def _update_atlas_view_box(self):
         for index in range(self.atlas_list_widget.count()):
             item = self.atlas_list_widget.item(index)
-            if item.text() in self.atlas.visible_atlas_regions:
+            if item.text() in self.vvasp_atlas.visible_atlas_regions:
                 item.setCheckState(2)  # 2 represents checked state
             else:
                 item.setCheckState(0)  # 0 represents unchecked state 
@@ -277,9 +276,9 @@ class VVASP(QMainWindow):
         acronym = item.text()
         state = item.checkState()
         if state == 0:
-            self.atlas.remove_atlas_region_mesh(acronym)
+            self.vvasp_atlas.remove_atlas_region_mesh(acronym)
         elif state == 2:
-            self.atlas.add_atlas_region_mesh(acronym)
+            self.vvasp_atlas.add_atlas_region_mesh(acronym)
 
     def _load_experiment(self, filename=None):
         if filename is None:
@@ -290,13 +289,13 @@ class VVASP(QMainWindow):
         if experiment_data is None:
             return
         print(experiment_data['atlas'], flush=True)
-        self.atlas = atlas_utils.Atlas(self.plotter,
-                                       atlas_name=experiment_data['atlas']['name'],
-                                       min_tree_depth=experiment_data['atlas']['min_tree_depth'],
-                                       max_tree_depth=experiment_data['atlas']['max_tree_depth'])
+        self.vvasp_atlas = atlas_utils.VVASPAtlas(self.plotter,
+                                            atlas_name=experiment_data['atlas']['name'],
+                                            min_tree_depth=experiment_data['atlas']['min_tree_depth'],
+                                            max_tree_depth=experiment_data['atlas']['max_tree_depth'])
 
         for r in experiment_data['atlas']['visible_regions']:
-            self.atlas.add_atlas_region_mesh(r)
+            self.vvasp_atlas.add_atlas_region_mesh(r)
         del self.atlas_view_box
         self._init_atlas_view_box()
         self._update_atlas_view_box()
@@ -314,7 +313,7 @@ class VVASP(QMainWindow):
                                angles,
                                p['active'],
                                info=p['info'],
-                               root_intersection_mesh=self.atlas.meshes['root']))
+                               vvasp_atlas=self.vvasp_atlas))
             if p['active']:
                 self.active_object = i
         self._update_probe_position_text()
@@ -328,7 +327,7 @@ class VVASP(QMainWindow):
         if len(self.objects) > 0:
             self._disconnect_shortcuts()
         self.objects = []
-        self.atlas = atlas_utils.Atlas(self.plotter, min_tree_depth=6, max_tree_depth=8) #TODO: allow the user to update tree depth
+        self.vvasp_atlas = atlas_utils.Atlas(self.plotter, min_tree_depth=6, max_tree_depth=8) #TODO: allow the user to update tree depth
         self.active_object = None
         self.filename = None
         self._update_atlas_view_box()
@@ -338,7 +337,7 @@ class VVASP(QMainWindow):
         if self.filename is None:
             self._save_experiment_as()
         else:
-            io.save_experiment(self.objects, self.atlas, Path(io.preferences['default_save_dir']) / self.filename)
+            io.save_experiment(self.objects, self.vvasp_atlas, Path(io.preferences['default_save_dir']) / self.filename)
     
     def _screenshot(self):
         filename = QFileDialog.getSaveFileName(self, 'Save screenshot', str(io.preferences['default_save_dir']), filter='*.png')[0]
@@ -350,13 +349,13 @@ class VVASP(QMainWindow):
         filename = QFileDialog.getSaveFileName(self, 'Save file', str(io.preferences['default_save_dir']), filter='*.json')[0]
         if filename: # handle the case where the user cancels the save dialog
             self.filename = filename
-            io.save_experiment(self.objects, self.atlas, io.EXPERIMENT_DIR / self.filename)
+            io.save_experiment(self.objects, self.vvasp_atlas, io.EXPERIMENT_DIR / self.filename)
     
     def _export_experiment_as(self):
         filename = QFileDialog.getSaveFileName(self, 'Save file', str(io.EXPERIMENT_DIR), filter='*.txt')[0]
         if filename: # handle the case where the user cancels the save dialog
             self.filename = filename
-            io.export_experiment(self.objects, self.atlas, io.EXPERIMENT_DIR / self.filename)
+            io.export_experiment(self.objects, self.vvasp_atlas, io.EXPERIMENT_DIR / self.filename)
      
     def contextMenuEvent(self, e):
         context = QMenu(self)
@@ -371,7 +370,7 @@ class VVASP(QMainWindow):
         zero_position = [[0,0,0], [90,0,0]]
         # TODO: show the savename of the selected probe in the gui
         info, _ = QInputDialog.getText(self, 'Input Dialog', 'Enter a name for this probe:') 
-        new_object = object_class(self.plotter, *zero_position, active=True, info=info, ray_trace_intersection=True, root_intersection_mesh=self.atlas.meshes['root'])
+        new_object = object_class(self.plotter, *zero_position, active=True, info=info, ray_trace_intersection=True, vvasp_atlas=self.vvasp_atlas)
         self.objects.append(new_object)
         active_object = len(self.objects) - 1
         self.update_active_object(active_object)
