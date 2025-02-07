@@ -197,7 +197,7 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
         # move the probe to a specific entry point and depth
         # this is useful for driving the probe from a brain region entry point
         # and depth along the probe axis
-        if self.bg_atlas is None:
+        if self.vvasp_atlas is None:
             raise ValueError("No atlas is defined, can not drive probe from atlas entry point")
 
         # 1) place the probe 1000um above the entry point
@@ -234,10 +234,16 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
             self.entry_point = None
             self.ball_mesh.shallow_copy(pv.Sphere(center=self.origin, radius=SPHERE_RADIUS))
 
-        # 2. compute the brain regions that the probe intersects
+        # Now, compute the brain regions that the probe travels through
         # TODO: optionally take a channelmap
-        NUM_SAMPLES = 100
-        self.intersection_vector = np.linspace(start, end, NUM_SAMPLES)
+        if self.entry_point is not None:
+            atlas_vector = self.vvasp_atlas.bregma_positions_to_atlas_voxels([self.origin, self.entry_point])
+        else:
+            atlas_vector = self.vvasp_atlas.bregma_positions_to_atlas_voxels([self.origin, self.origin])
+        atlas_bresenham_line = bresenham3D(atlas_vector[0], atlas_vector[1]) # get the voxels that the probe passes thru 
+        region_boundary_voxels = self.vvasp_atlas.atlas_voxels_to_annotation_boundaries(atlas_bresenham_line)
+        print(region_boundary_voxels, flush=True)
+        # TODO: finish off here 
     
     def _move(self, position_shift, increment=True):
         super()._move(position_shift, increment)

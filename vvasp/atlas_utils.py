@@ -1,5 +1,6 @@
 from . import io
 from .utils import *
+from tifffile import imread
 
 def list_availible_atlases():
     return [x.name for x in io.ATLAS_DIR.glob('*')]
@@ -55,9 +56,6 @@ class VVASPAtlas:
         axes = io.pv.Axes()
         #axes.origin = self.bregma_location
         axes.origin = np.array([0,0,0])
-        
-        rotate5deg = True
-
         for r in regions:
             try:
                 s = io.load_structure_mesh(self.atlas_path, self.structures, r) 
@@ -67,10 +65,10 @@ class VVASPAtlas:
                 continue
         
             s[0].translate(-self.bregma_location, inplace=True) #make bregma the origin
-            rotation_angles = -np.array(io.preferences['atlas_transformations'][self.name]['angles'])
-            s[0].rotate_x(rotation_angles[0], point=axes.origin, inplace=True)
-            s[0].rotate_y(rotation_angles[1], point=axes.origin, inplace=True) # rotate the meshes so that [x,y,z] => [ML,AP,DV]
-            s[0].rotate_z(rotation_angles[2], point=axes.origin, inplace=True) # rotate the meshes so that [x,y,z] => [ML,AP,DV]
+            self.rotation_angles = -np.array(io.preferences['atlas_transformations'][self.name]['angles'])
+            s[0].rotate_x(self.rotation_angles[0], point=axes.origin, inplace=True)
+            s[0].rotate_y(self.rotation_angles[1], point=axes.origin, inplace=True) # rotate the meshes so that [x,y,z] => [ML,AP,DV]
+            s[0].rotate_z(self.rotation_angles[2], point=axes.origin, inplace=True) # rotate the meshes so that [x,y,z] => [ML,AP,DV]
             self.meshes[r] = s[0]
             self.meshcols[r] = s[1]['rgb_triplet']
         assert len(self.meshes) == len(self.structures)
@@ -83,6 +81,32 @@ class VVASPAtlas:
                                   name='root')
         if show_bregma:
             self.bregma_actor = self.plotter.add_mesh(io.pv.Sphere(radius=100, center=(0,0,0)))
+
+        r_angles = -self.rotation_angles
+        self.rotmat = rotation_matrix_from_degrees(*r_angles, order='zyx') # used to get the annotations
+
+        self.annotations = imread(self.atlas_path/'annotation.tiff')
+
+    def bregma_positions_to_structures(self, positions_um):
+        voxels = self.bregma_positions_to_atlas_voxels(positions_um)
+        region_acronyms = [self.bg_atlas.structure_from_coords(a, as_acronym=True) for a in voxels]
+        return region_acronyms
+
+    def bregma_positions_to_atlas_voxels(self, positions_um):
+        positions_um = np.dot(positions_um, self.rotmat.T)
+        positions_um = positions_um + self.bregma_location
+        voxels = np.array(np.round(positions_um / self.bg_atlas.metadata['resolution'])).astype(int)
+        voxels = np.clip(voxels, 0, np.array(self.bg_atlas.annotation.shape)-1)
+        return voxels
+
+    def atlas_voxels_to_annotation_boundaries(self,bresenham_line):
+        '''
+        Uses a bresenham line to compute the atlas voxels where the line intersects the boundaries between regions.
+        '''
+        bresenham_line = np.clip(bresenham_line, 0, np.array(self.annotations.shape) - 1)
+        region_ids = self.annotations[tuple(bresenham_line.T)]
+        region_boundaries = bresenham_line[np.where(np.diff(region_ids) != 0)]
+        return region_boundaries
 
     def add_atlas_region_mesh(self, region_acronym, side='both', force_replot=False, **pv_kwargs):
         if region_acronym in self.visible_region_actors.keys() and not force_replot:

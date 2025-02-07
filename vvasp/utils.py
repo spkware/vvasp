@@ -10,7 +10,7 @@ import json
 
 from math import cos, sin, radians
 
-def rotation_matrix_from_degrees(x_rot, y_rot, z_rot):
+def rotation_matrix_from_degrees(x_rot, y_rot, z_rot, order=None):
     """Return a rotation matrix to rotate a vector in 3D space. Pass the angles in degrees, not radians.
     Max Melin, 2024"""
     alpha = radians(z_rot)
@@ -28,7 +28,11 @@ def rotation_matrix_from_degrees(x_rot, y_rot, z_rot):
                    [0, sin(gamma), cos(gamma)]])
 
     #return Rz @ Ry @ Rx
-    return Rz @ Rx @ Ry # this is the correct order of rotations for the probe
+    if order is None:
+        return Rz @ Rx @ Ry # this is the correct order of rotations for the probe
+    else:
+        rdict = dict(x=Rx, y=Ry, z=Rz)
+        return rdict[order[2]] @ rdict[order[1]] @ rdict[order[0]]
 
 def move3D(distance, phi, theta):
     """Move a point in 3D space by a distance and angles. 
@@ -51,5 +55,74 @@ def get_blackrock_array_geometry(nx, ny, pitch_um=400, shank_dims=[40, 1_000, 0]
     list_of_coordinates = np.vstack((x_grid.ravel(), y_grid.ravel(), z_grid.ravel())).T.tolist()
     list_of_shank_dims = [shank_dims for _ in range(nx*ny)]
     return list_of_coordinates, list_of_shank_dims
+
+def bresenham3D(start_point, end_point):
+    '''
+    Implementation of 3D Bresenham Line Algorithm. Start point and end point should be a tuple or array of 3 integers.
+    '''
+    start_point = np.array(start_point, dtype=int)
+    end_point = np.array(end_point, dtype=int)
+    
+    x1, y1, z1 = start_point
+    x2, y2, z2 = end_point
+    points = []
+    dx = abs(x2 - x1)
+    dy = abs(y2 - y1)
+    dz = abs(z2 - z1)
+    
+    xs = 1 if x2 > x1 else -1
+    ys = 1 if y2 > y1 else -1
+    zs = 1 if z2 > z1 else -1
+    
+    # Driving axis is X-axis
+    if dx >= dy and dx >= dz:
+        p1 = 2 * dy - dx
+        p2 = 2 * dz - dx
+        while x1 != x2:
+            points.append((x1, y1, z1))
+            if p1 >= 0:
+                y1 += ys
+                p1 -= 2 * dx
+            if p2 >= 0:
+                z1 += zs
+                p2 -= 2 * dx
+            p1 += 2 * dy
+            p2 += 2 * dz
+            x1 += xs
+    
+    # Driving axis is Y-axis
+    elif dy >= dx and dy >= dz:
+        p1 = 2 * dx - dy
+        p2 = 2 * dz - dy
+        while y1 != y2:
+            points.append((x1, y1, z1))
+            if p1 >= 0:
+                x1 += xs
+                p1 -= 2 * dy
+            if p2 >= 0:
+                z1 += zs
+                p2 -= 2 * dy
+            p1 += 2 * dx
+            p2 += 2 * dz
+            y1 += ys
+    
+    # Driving axis is Z-axis
+    else:
+        p1 = 2 * dx - dz
+        p2 = 2 * dy - dz
+        while z1 != z2:
+            points.append((x1, y1, z1))
+            if p1 >= 0:
+                x1 += xs
+                p1 -= 2 * dz
+            if p2 >= 0:
+                y1 += ys
+                p2 -= 2 * dz
+            p1 += 2 * dx
+            p2 += 2 * dy
+            z1 += zs
+    
+    points.append((x2, y2, z2))  # Ensure the last point is included
+    return np.stack(points)
 
     
