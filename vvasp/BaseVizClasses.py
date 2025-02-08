@@ -241,9 +241,11 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
         else:
             atlas_vector = self.vvasp_atlas.bregma_positions_to_atlas_voxels([self.origin, self.origin])
         atlas_bresenham_line = bresenham3D(atlas_vector[0], atlas_vector[1]) # get the voxels that the probe passes thru 
-        region_boundary_voxels = self.vvasp_atlas.atlas_voxels_to_annotation_boundaries(atlas_bresenham_line)
-        print(region_boundary_voxels, flush=True)
-        # TODO: finish off here 
+        region_boundary_voxels, midpoint_voxels = self.vvasp_atlas.atlas_voxels_to_annotation_boundaries(atlas_bresenham_line, return_midpoints=True)
+        region_acronyms = [self.vvasp_atlas.bg_atlas.structure_from_coords(a, as_acronym=True) for a in midpoint_voxels]
+        # TODO: convert midpoints and boundaries to single distance values, then save them to the object
+        # TODO: will need to initialize these new properties in the init func
+        # TODO: make it work with multiple shanks... look around and see where shank origins are stored
     
     def _move(self, position_shift, increment=True):
         super()._move(position_shift, increment)
