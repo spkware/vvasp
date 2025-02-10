@@ -1,6 +1,7 @@
 from .utils import *
 from .io import probe_geometries
 from .BaseVizClasses import VVASPBaseVisualizerClass, AbstractBaseProbe, ACTIVE_COLOR, INACTIVE_COLOR
+import ipdb
 
 class CustomMeshObject(VVASPBaseVisualizerClass):
     """
@@ -67,6 +68,15 @@ class Probe(AbstractBaseProbe):
             vecs = shank_vectors + np.array(offset).T
             self.meshes.append(pv.Rectangle(vecs.astype(np.float32)))
 
+    @property
+    def shank_origins(self):
+        '''Used for tracking the regions that each shank is in'''
+        dims = np.stack(self.shank_dims_um) # shanks by dims
+        offsets = np.stack(self.shank_offsets_um)
+        offsets[:,0] = offsets[:,0] + dims[:,0] / 2
+        rotated_offsets = np.dot(offsets, self.rotation_matrix.T)
+        return rotated_offsets + self.origin
+
 class NeuropixelsChronicHolder(AbstractBaseProbe):
     name = "NP2 w/ chronic holder"
     def __init__(self,
@@ -108,6 +118,15 @@ class NeuropixelsChronicHolder(AbstractBaseProbe):
         else:
             raise ValueError(f"chassis_type \"{chassis_type}\" or probetype \"{probetype}\" not recognized.") 
         super().__init__(vistaplotter, starting_position, starting_angles, active, ray_trace_intersection, vvasp_atlas, **kwargs)
+
+    @property
+    def shank_origins(self):
+        '''Used for tracking the regions that each shank is in'''
+        dims = np.stack(self.shank_dims_um) # shanks by dims
+        offsets = np.stack(self.shank_offsets_um)
+        offsets[:,0] = offsets[:,0] + dims[:,0] / 2
+        rotated_offsets = np.dot(offsets, self.rotation_matrix.T)
+        return rotated_offsets + self.origin
     
     def create_meshes(self):
         scale_factor = 1000

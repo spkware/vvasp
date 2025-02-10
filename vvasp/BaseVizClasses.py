@@ -186,10 +186,7 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
         self.ball_mesh = pv.Sphere(center=np.array(starting_position).astype(np.float32), radius=SPHERE_RADIUS)
         self.ball_actor = vistaplotter.add_mesh(self.ball_mesh, color='blue')
 
-        # The following properties store the brain regions that the probe travels through
-        self.region_boundary_distances = None # TODO: maybe use a different default
-        self.region_midpoint_distances = None
-        self.region_acronyms = None
+        
 
         super().__init__(vistaplotter, starting_position, starting_angles, active)
 
@@ -205,6 +202,8 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
         Defined in child classes, this function must set self.shank_origins to a list of shank origins
         These are used to compute the brain regions that the probe travels through.
         Can be set to None if not needed.
+
+        Shank origins should return a [n_shanks, 3] matrix, specifying the origin of each shank
         '''
         pass
 
@@ -248,36 +247,44 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
         else:
             self.entry_point = None
             self.ball_mesh.shallow_copy(pv.Sphere(center=self.origin, radius=SPHERE_RADIUS))
-
-        # Now, compute the brain regions that the probe travels through
+    
+    def __compute_region_intersections(self):
+        # Compute the brain regions that the probe travels through
         # TODO: optionally take a channelmap
-        if self.entry_point is None:
-            return
-        else:
-            atlas_vector = self.vvasp_atlas.bregma_positions_to_atlas_voxels([self.origin, self.entry_point])
-        atlas_bresenham_line = bresenham3D(atlas_vector[0], atlas_vector[1]) # get the voxels that the probe passes thru 
-        region_boundary_voxels, midpoint_voxels = self.vvasp_atlas.atlas_voxels_to_annotation_boundaries(atlas_bresenham_line, return_midpoints=True)
-        self.region_acronyms = [self.vvasp_atlas.bg_atlas.structure_from_coords(a, as_acronym=True) for a in midpoint_voxels]
-        # Convert midpoints and boundaries to single distance values
-        region_boundary_voxels = region_boundary_voxels * self.vvasp_atlas.bg_atlas.resolution # convert to um
-        midpoint_voxels = midpoint_voxels * self.vvasp_atlas.bg_atlas.resolution
-        zero_point = region_boundary_voxels[0]
-        self.region_boundary_distances = np.linalg.norm(region_boundary_voxels - zero_point, axis=1)
-        self.region_midpoint_distances = np.linalg.norm(midpoint_voxels - zero_point, axis=1)
-        # TODO: make it work with multiple shanks... look around and see where shank origins are stored
+        self.region_boundary_distances = [None] * len(self.shank_origins)
+        self.region_midpoint_distances = [None] * len(self.shank_origins)
+        self.region_acronyms = [None] * len(self.shank_origins)
+
+        init_vector = (self.rotation_matrix @ INIT_VEC)
+        for i,shnk_origin in enumerate(self.shank_origins):
+            shnk_ending = init_vector + shnk_origin
+            atlas_vector = self.vvasp_atlas.bregma_positions_to_atlas_voxels([shnk_origin, shnk_ending])
+            atlas_bresenham_line = bresenham3D(atlas_vector[0], atlas_vector[1]) # get the voxels that the probe passes thru 
+            region_boundary_voxels, midpoint_voxels = self.vvasp_atlas.atlas_voxels_to_annotation_boundaries(atlas_bresenham_line, return_midpoints=True)
+            self.region_acronyms[i] = [self.vvasp_atlas.bg_atlas.structure_from_coords(a, as_acronym=True) for a in midpoint_voxels]
+            # Convert midpoints and boundaries to single distance values
+            region_boundary_voxels = region_boundary_voxels * self.vvasp_atlas.bg_atlas.resolution # convert to um
+            midpoint_voxels = midpoint_voxels * self.vvasp_atlas.bg_atlas.resolution
+            zero_point = region_boundary_voxels[0]
+            self.region_boundary_distances[i] = np.linalg.norm(region_boundary_voxels - zero_point, axis=1)
+            self.region_midpoint_distances[i] = np.linalg.norm(midpoint_voxels - zero_point, axis=1)
     
     def _move(self, position_shift, increment=True):
         super()._move(position_shift, increment)
+        # TODO: update the probe_origins here
         if self.ray_trace_intersection:
                 self.__ray_trace_intersection()
+                self.__compute_region_intersections()
         else:
             self.ball_mesh.shallow_copy(pv.Sphere(center=self.origin, radius=SPHERE_RADIUS))
         self.plotter.update()
     
     def _rotate(self, angle_shift, increment=True):
         super()._rotate(angle_shift, increment)
+        # TODO: update the probe_origins here
         if self.ray_trace_intersection:
                 self.__ray_trace_intersection()
+                self.__compute_region_intersections()
         else:
             self.ball_mesh.shallow_copy(pv.Sphere(center=self.origin, radius=SPHERE_RADIUS))
         self.plotter.update()
