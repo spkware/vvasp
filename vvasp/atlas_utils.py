@@ -108,14 +108,15 @@ class VVASPAtlas:
         bresenham_line = np.clip(bresenham_line, 0, np.array(self.annotations.shape) - 1)
         region_ids = self.annotations[tuple(bresenham_line.T)]
         region_boundaries = bresenham_line[np.where(np.diff(region_ids) != 0)]
+        region_boundaries = np.vstack([bresenham_line[0], region_boundaries, bresenham_line[-1]])
         if not return_midpoints:
             return region_boundaries
         else:
             if region_boundaries.shape[0] == 0:
                 midpoints = np.empty((0,3))
             else:
-                temp = np.vstack([bresenham_line[0], region_boundaries, bresenham_line[-1]])
-                midpoints = ((temp[:-1] + temp[1:]) / 2).astype(int)
+                #temp = np.vstack([bresenham_line[0], region_boundaries, bresenham_line[-1]])
+                midpoints = ((region_boundaries[:-1] + region_boundaries[1:]) / 2).astype(int)
             return region_boundaries, midpoints
 
     def add_atlas_region_mesh(self, region_acronym, side='both', force_replot=False, **pv_kwargs):

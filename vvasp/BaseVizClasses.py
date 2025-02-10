@@ -186,12 +186,27 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
         self.ball_mesh = pv.Sphere(center=np.array(starting_position).astype(np.float32), radius=SPHERE_RADIUS)
         self.ball_actor = vistaplotter.add_mesh(self.ball_mesh, color='blue')
 
+        # The following properties store the brain regions that the probe travels through
+        self.region_boundary_distances = None # TODO: maybe use a different default
+        self.region_midpoint_distances = None
+        self.region_acronyms = None
+
         super().__init__(vistaplotter, starting_position, starting_angles, active)
 
         if active:
             self.make_active()
         else:
             self.make_inactive()
+
+    @property
+    @abstractmethod
+    def shank_origins(self):
+        '''
+        Defined in child classes, this function must set self.shank_origins to a list of shank origins
+        These are used to compute the brain regions that the probe travels through.
+        Can be set to None if not needed.
+        '''
+        pass
 
     def drive_probe_from_entry(self, ml_ap_entry, angles, depth):
         # move the probe to a specific entry point and depth
@@ -236,15 +251,19 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
 
         # Now, compute the brain regions that the probe travels through
         # TODO: optionally take a channelmap
-        if self.entry_point is not None:
-            atlas_vector = self.vvasp_atlas.bregma_positions_to_atlas_voxels([self.origin, self.entry_point])
+        if self.entry_point is None:
+            return
         else:
-            atlas_vector = self.vvasp_atlas.bregma_positions_to_atlas_voxels([self.origin, self.origin])
+            atlas_vector = self.vvasp_atlas.bregma_positions_to_atlas_voxels([self.origin, self.entry_point])
         atlas_bresenham_line = bresenham3D(atlas_vector[0], atlas_vector[1]) # get the voxels that the probe passes thru 
         region_boundary_voxels, midpoint_voxels = self.vvasp_atlas.atlas_voxels_to_annotation_boundaries(atlas_bresenham_line, return_midpoints=True)
-        region_acronyms = [self.vvasp_atlas.bg_atlas.structure_from_coords(a, as_acronym=True) for a in midpoint_voxels]
-        # TODO: convert midpoints and boundaries to single distance values, then save them to the object
-        # TODO: will need to initialize these new properties in the init func
+        self.region_acronyms = [self.vvasp_atlas.bg_atlas.structure_from_coords(a, as_acronym=True) for a in midpoint_voxels]
+        # Convert midpoints and boundaries to single distance values
+        region_boundary_voxels = region_boundary_voxels * self.vvasp_atlas.bg_atlas.resolution # convert to um
+        midpoint_voxels = midpoint_voxels * self.vvasp_atlas.bg_atlas.resolution
+        zero_point = region_boundary_voxels[0]
+        self.region_boundary_distances = np.linalg.norm(region_boundary_voxels - zero_point, axis=1)
+        self.region_midpoint_distances = np.linalg.norm(midpoint_voxels - zero_point, axis=1)
         # TODO: make it work with multiple shanks... look around and see where shank origins are stored
     
     def _move(self, position_shift, increment=True):
