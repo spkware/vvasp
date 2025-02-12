@@ -250,30 +250,87 @@ class VVASP(QMainWindow):
             shortcut.activated.connect(func)
         self.shortcuts_connected = True
             
+    #def _init_atlas_view_box(self):
+    #    if hasattr(self,'atlas_view_box'):
+    #        return
+    #    self.atlas_view_box = QGroupBox(f'Atlas View: {self.vvasp_atlas.name}')
+    #    self.atlas_view_box.setFixedHeight(300)
+    #    self.atlas_view_box.setFixedWidth(300)
+
+    #    layout = QHBoxLayout()
+    #    #if hasattr(self,'atlas_list_widget'):
+    #    #    self.atlas_list_widget.clear()
+    #    #    self.layout().removeWidget(self.atlas_view_box)  # Remove from layout
+    #    self.atlas_list_widget = QListWidget()
+    #    self.atlas_list_widget.setSelectionMode(QListWidget.MultiSelection)
+
+    #    for acronym in self.vvasp_atlas.all_atlas_regions:
+    #        item = QListWidgetItem(acronym)
+    #        item.setCheckState(0)  # 0 represents unchecked state 
+    #        self.atlas_list_widget.addItem(item)
+    #    self.atlas_list_widget.setMaximumWidth(200)
+    #    
+    #    layout.addWidget(self.atlas_list_widget)
+    #    self.atlas_view_box.setLayout(layout)
+
+    #    self.atlas_list_widget.itemClicked.connect(self.handle_atlas_list_item_click)
+    #    self.bottom_horizontal_widgets.addWidget(self.atlas_view_box)
+
     def _init_atlas_view_box(self):
+        if hasattr(self, 'atlas_view_box'):
+            return
+
         self.atlas_view_box = QGroupBox(f'Atlas View: {self.vvasp_atlas.name}')
         self.atlas_view_box.setFixedHeight(300)
         self.atlas_view_box.setFixedWidth(300)
 
-        layout = QHBoxLayout()
-        if hasattr(self,'atlas_list_widget'):
-            self.atlas_list_widget.clear()
-            self.layout().removeWidget(self.atlas_view_box)  # Remove from layout
+        layout = QVBoxLayout()
 
+        # Search bar
+        self.search_bar = QLineEdit()
+        self.search_bar.setPlaceholderText("Search regions...")
+        self.search_bar.textChanged.connect(self.filter_list)  # Connect filtering function
+
+        # List widget
         self.atlas_list_widget = QListWidget()
         self.atlas_list_widget.setSelectionMode(QListWidget.MultiSelection)
-
-        for acronym in self.vvasp_atlas.all_atlas_regions:
-            item = QListWidgetItem(acronym)
-            item.setCheckState(0)  # 0 represents unchecked state 
-            self.atlas_list_widget.addItem(item)
         self.atlas_list_widget.setMaximumWidth(200)
-        
+
+        # Store region names
+        self.all_region_names = list(self.vvasp_atlas.all_atlas_regions)
+
+        # Store check states
+        self.checked_states = {name: False for name in self.all_region_names}
+
+        # Populate the list initially
+        self.populate_list("")
+
+        layout.addWidget(self.search_bar)
         layout.addWidget(self.atlas_list_widget)
         self.atlas_view_box.setLayout(layout)
 
         self.atlas_list_widget.itemClicked.connect(self.handle_atlas_list_item_click)
         self.bottom_horizontal_widgets.addWidget(self.atlas_view_box)
+
+    def populate_list(self, filter_text=""):
+        """Populates the list widget while preserving check states."""
+        self.atlas_list_widget.clear()
+
+        for name in self.all_region_names:
+            if filter_text.lower() in name.lower():
+                item = QListWidgetItem(name)
+                item.setCheckState(2 if self.checked_states.get(name, False) else 0)  # Preserve check state
+                self.atlas_list_widget.addItem(item)
+
+    def filter_list(self):
+        """Filters the list based on user input while keeping check states."""
+        # Save the current check states before clearing
+        for index in range(self.atlas_list_widget.count()):
+            item = self.atlas_list_widget.item(index)
+            self.checked_states[item.text()] = item.checkState() == 2  # Checked state is 2
+
+        filter_text = self.search_bar.text().strip()
+        self.populate_list(filter_text)
 
     def _update_atlas_view_box(self):
         for index in range(self.atlas_list_widget.count()):
@@ -307,6 +364,7 @@ class VVASP(QMainWindow):
 
         for r in experiment_data['atlas']['visible_regions']:
             self.vvasp_atlas.add_atlas_region_mesh(r)
+        self.bottom_horizontal_widgets.removeWidget(self.atlas_view_box)
         del self.atlas_view_box
         self._init_atlas_view_box()
         self._update_atlas_view_box()
@@ -338,9 +396,13 @@ class VVASP(QMainWindow):
         if len(self.objects) > 0:
             self._disconnect_shortcuts()
         self.objects = []
-        self.vvasp_atlas = atlas_utils.Atlas(self.plotter, min_tree_depth=6, max_tree_depth=8) #TODO: allow the user to update tree depth
+        #del self.vvasp_atlas
+        self.vvasp_atlas = atlas_utils.VVASPAtlas(self.plotter, min_tree_depth=6, max_tree_depth=8) #TODO: allow the user to update tree depth
         self.active_object = None
         self.filename = None
+        self.bottom_horizontal_widgets.removeWidget(self.atlas_view_box)
+        del self.atlas_view_box
+        self._init_atlas_view_box()
         self._update_atlas_view_box()
         #self._update_probe_position_text()
      
