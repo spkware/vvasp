@@ -18,6 +18,8 @@ classifiers = [
 dependencies = [
 	     "pyvista",
 	     "pyvistaqt",
+       "pyqtgraph",
+       "PyQt5"
 ]
 dynamic = ["version"]
 
