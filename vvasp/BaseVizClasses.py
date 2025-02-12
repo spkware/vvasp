@@ -252,7 +252,6 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
         # Compute the brain regions that the probe travels through
         # TODO: optionally take a channelmap
         self.region_boundary_distances = [None] * len(self.shank_origins)
-        self.region_midpoint_distances = [None] * len(self.shank_origins)
         self.region_acronyms = [None] * len(self.shank_origins)
 
         init_vector = (self.rotation_matrix @ INIT_VEC)
@@ -264,10 +263,8 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
             self.region_acronyms[i] = [self.vvasp_atlas.bg_atlas.structure_from_coords(a, as_acronym=True) for a in midpoint_voxels]
             # Convert midpoints and boundaries to single distance values
             region_boundary_voxels = region_boundary_voxels * self.vvasp_atlas.bg_atlas.resolution # convert to um
-            midpoint_voxels = midpoint_voxels * self.vvasp_atlas.bg_atlas.resolution
             zero_point = region_boundary_voxels[0]
             self.region_boundary_distances[i] = np.linalg.norm(region_boundary_voxels - zero_point, axis=1)
-            self.region_midpoint_distances[i] = np.linalg.norm(midpoint_voxels - zero_point, axis=1)
     
     def _move(self, position_shift, increment=True):
         super()._move(position_shift, increment)

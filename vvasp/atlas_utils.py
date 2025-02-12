@@ -37,6 +37,9 @@ class VVASPAtlas:
         with open(self.atlas_path/'metadata.json','r') as fd:
             metadata = io.json.load(fd)
         maxdepth = np.max([len(p['structure_id_path']) for p in structures]) #get max tree depth
+        temp = pd.DataFrame(structures)
+        self.colormap = temp[['acronym','rgb_triplet']].set_index('acronym').to_dict()['rgb_triplet']
+        self.colormap['Outside atlas'] = [0,0,0] # manually add this
         tmp_root = [s for s in structures if s['acronym'] == 'root'][0]
         structures = [s for s in structures if len(s['structure_id_path']) <= max_tree_depth] #restrict to regions at or below max tree depth
         structures = [s for s in structures if len(s['structure_id_path']) >= min_tree_depth] #restrict to regions at or below max tree depth

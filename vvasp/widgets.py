@@ -42,7 +42,7 @@ from PyQt5.QtWidgets import (QWidget,
                              QInputDialog)
 from PyQt5.QtGui import QContextMenuEvent, QImage, QKeyEvent, QPixmap,QBrush,QPen,QColor,QFont,QKeySequence
 from PyQt5.QtCore import Qt,QSize,QRectF,QLineF,QPointF,QTimer,QSettings
-
+import pyqtgraph as pg
 from pyvistaqt import BackgroundPlotter, QtInteractor, MainWindow
 
 
@@ -57,6 +57,7 @@ class VVASP(QMainWindow):
         # filename will be letting you plot the same probes again
         # It'll be just a human readable JSON file.
         super(VVASP,self).__init__()
+        self.probe_path_window = None
         self.filename = experiment_file
         self.setWindowTitle('VVASP')
         self.resize(VVASP.DEFAULT_WIDTH,VVASP.DEFAULT_HEIGHT)
@@ -99,6 +100,7 @@ class VVASP(QMainWindow):
         self._init_atlas_view_box()
         self._init_keyboard_shortcuts()
         self._init_toolbar()
+        self.toggle_probe_path_window()
     
     def _add_action(self, tool_bar, key, method):
         action = QAction(key, self.app_window)
@@ -129,8 +131,16 @@ class VVASP(QMainWindow):
         self.probeMenu.addAction('Next Object',self.next_object)
         self.probeMenu.addAction('Previous Object',self.previous_object)
     
-        self.probeMenu = self.menubar.addMenu('Atlas')
+        self.atlasMenu = self.menubar.addMenu('Atlas')
         # TODO: add atlas functionality here
+
+        self.viewMenu = self.menubar.addMenu('Windows')
+        # toggleable action
+        self.toggle_action = QAction("Probe Path", self)
+        self.toggle_action.setCheckable(True)
+        self.toggle_action.triggered.connect(self.toggle_probe_path_window)
+        self.viewMenu.addAction(self.toggle_action)
+    
 
     def _init_probe_position_box(self):
         self.probe_position_box = QGroupBox('Probe Position')
@@ -235,6 +245,7 @@ class VVASP(QMainWindow):
             def _shortcut_handler_function(d=direction, m=multiplier):
                 self.objects[self.active_object].move(d, m) # connect the function to move the probe
                 self._update_probe_position_text() # update the text box with the new position
+                self.probe_path_window.update_probe_path_plot() # update the probe path plot
             func = lambda d=direction,m=multiplier:_shortcut_handler_function(d,m)
             shortcut.activated.connect(func)
         self.shortcuts_connected = True
@@ -408,6 +419,8 @@ class VVASP(QMainWindow):
         
         # update the positon text
         self._update_probe_position_text()
+        # update the probe path plot
+        self.probe_path_window.update_probe_path_plot()
 
         # connect the shortcuts to the new active object
         if self.shortcuts_connected:
@@ -451,4 +464,82 @@ class VVASP(QMainWindow):
 
     def closeEvent(self,event):
         self.plotter.close()
+        if self.probe_path_window is not None:
+            self.probe_path_window.close()
+        event.accept()
+
+    def toggle_probe_path_window(self):
+        #if self.toggle_action.isChecked():
+        if self.probe_path_window is None: # Create window if it doesn't exist
+            #self.text_edit.setStyleSheet("background-color: lightgray;")
+            self.probe_path_window = ProbePathWindow(main_window=self)
+            self.probe_path_window.show()
+        else:
+            #self.text_edit.setStyleSheet("background-color: white;")
+            self.probe_path_window.close()
+
+
+#################
+## The second window, with probe tracks
+#################
+class ProbePathWindow(QWidget):
+    """Second window that can be opened from the main window."""
+    def __init__(self, main_window):
+        super().__init__()
+        self.main_window = main_window
+        self.setWindowTitle("Probe Path View")
+        self.setGeometry(300, 300, 400, 800)
+
+        self.update_timer = QTimer(self)
+        self.update_timer.setSingleShot(True)
+        self.update_timer.timeout.connect(self._update_probe_path_plot)
+
+        layout = QHBoxLayout()
+        self.setLayout(layout)
+        self.plot = pg.PlotWidget()
+        self.plot.setBackground("w")  # Set white background
+        self.plot.getPlotItem().hideAxis('bottom')  # Hide X-axis
+        self.plot.getPlotItem().getAxis('left').setLabel('Distance from shank tip (um)')
+        self.update_probe_path_plot()
+        layout.addWidget(self.plot)
+
+    def update_probe_path_plot(self):
+        self.update_timer.start(80)  # only update the plot after 80ms break to not bog down main app
+        
+    def _update_probe_path_plot(self):
+        # get the active probe
+        if self.main_window.active_object is None:
+            return
+        self.plot.clear()
+        n_shanks = len(self.main_window.objects[self.main_window.active_object].shank_origins)
+        self.plot.setXRange(-1, n_shanks+1)
+        acronyms = self.main_window.objects[self.main_window.active_object].region_acronyms
+        boundaries = self.main_window.objects[self.main_window.active_object].region_boundary_distances
+
+        # add the bars to the plot
+        for i, (acc, bound) in enumerate(zip(acronyms, boundaries)): # iterate over shanks
+            for j, (y0, y1, ac) in enumerate(zip(bound[:-1], bound[1:], acc)): # iterate over regions
+                if ac == 'Outside atlas':
+                    color = 'gray'
+                else:
+                    color = self.main_window.vvasp_atlas.colormap[ac]
+                bar = pg.BarGraphItem(x=i, width=.2, y0=y0 , y1=y1, brush=color)
+                self.plot.addItem(bar)
+
+        # add the text of the regions to the plot
+        for i, (acc, bound) in enumerate(zip(acronyms, boundaries)): # iterate over shanks
+            # get the midpoints of boundaries
+            midpts = (bound[:-1] + bound[1:]) / 2
+            for j, (ac, mp) in enumerate(zip(acc, midpts)): # iterate over regions
+                if ac == 'Outside atlas':
+                    color = 'gray'
+                else:
+                    color = self.main_window.vvasp_atlas.colormap[ac]
+                text = pg.TextItem(ac, color=color)
+                text.setPos(i+.1, mp)  # Position to side of bar
+                self.plot.addItem(text)
+        
+    def closeEvent(self, event):
+        self.main_window.probe_path_window = None
+        self.main_window.toggle_action.setChecked(False)
         event.accept()
