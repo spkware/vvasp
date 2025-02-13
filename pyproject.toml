@@ -19,7 +19,10 @@ dependencies = [
 	     "pyvista",
 	     "pyvistaqt",
        "pyqtgraph",
-       "PyQt5"
+       "PyQt5",
+       "pandas",
+       "tifffile",
+       "brainglobe-atlasapi"
 ]
 dynamic = ["version"]
 
