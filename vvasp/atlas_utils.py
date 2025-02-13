@@ -1,7 +1,6 @@
 from . import io
 from .utils import *
 from tifffile import imread
-import ipdb
 
 def list_availible_atlases():
     return [x.name for x in io.ATLAS_DIR.glob('*')]
@@ -141,11 +140,13 @@ class VVASPAtlas:
                               silhouette=False,
                               **pv_kwargs)
         self.visible_region_actors.update({region_acronym: actor})
+        self.plotter.update()
     
     def remove_atlas_region_mesh(self, region_acronym):
         if region_acronym in self.visible_region_actors.keys():
             self.plotter.remove_actor(self.visible_region_actors[region_acronym])
             self.visible_region_actors.pop(region_acronym)
+            self.plotter.update()
         else:
             print(f'No region {region_acronym} to remove')
     

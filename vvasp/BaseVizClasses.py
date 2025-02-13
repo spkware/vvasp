@@ -1,7 +1,6 @@
 from .utils import *
 import pyvista as pv 
 from abc import ABC, abstractmethod
-import ipdb
 
 ACTIVE_COLOR = '#FF0000'
 INACTIVE_COLOR = '#000000'

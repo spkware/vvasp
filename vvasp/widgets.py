@@ -249,32 +249,6 @@ class VVASP(QMainWindow):
             func = lambda d=direction,m=multiplier:_shortcut_handler_function(d,m)
             shortcut.activated.connect(func)
         self.shortcuts_connected = True
-            
-    #def _init_atlas_view_box(self):
-    #    if hasattr(self,'atlas_view_box'):
-    #        return
-    #    self.atlas_view_box = QGroupBox(f'Atlas View: {self.vvasp_atlas.name}')
-    #    self.atlas_view_box.setFixedHeight(300)
-    #    self.atlas_view_box.setFixedWidth(300)
-
-    #    layout = QHBoxLayout()
-    #    #if hasattr(self,'atlas_list_widget'):
-    #    #    self.atlas_list_widget.clear()
-    #    #    self.layout().removeWidget(self.atlas_view_box)  # Remove from layout
-    #    self.atlas_list_widget = QListWidget()
-    #    self.atlas_list_widget.setSelectionMode(QListWidget.MultiSelection)
-
-    #    for acronym in self.vvasp_atlas.all_atlas_regions:
-    #        item = QListWidgetItem(acronym)
-    #        item.setCheckState(0)  # 0 represents unchecked state 
-    #        self.atlas_list_widget.addItem(item)
-    #    self.atlas_list_widget.setMaximumWidth(200)
-    #    
-    #    layout.addWidget(self.atlas_list_widget)
-    #    self.atlas_view_box.setLayout(layout)
-
-    #    self.atlas_list_widget.itemClicked.connect(self.handle_atlas_list_item_click)
-    #    self.bottom_horizontal_widgets.addWidget(self.atlas_view_box)
 
     def _init_atlas_view_box(self):
         if hasattr(self, 'atlas_view_box'):

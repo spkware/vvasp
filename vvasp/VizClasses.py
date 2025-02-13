@@ -1,7 +1,6 @@
 from .utils import *
 from .io import probe_geometries
 from .BaseVizClasses import VVASPBaseVisualizerClass, AbstractBaseProbe, ACTIVE_COLOR, INACTIVE_COLOR
-import ipdb
 
 class CustomMeshObject(VVASPBaseVisualizerClass):
     """
