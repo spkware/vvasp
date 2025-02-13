@@ -10,7 +10,7 @@ VVASP is a python library for 3D viewing of spatially defined neuroscience data 
 VVASP also includes a graphical user interface to facilitate planning for stereotaxic surgery. The gui relies on [PyQt5](https://www.riverbankcomputing.com/software/pyqt/) for interactive control and visulization of probe trajectories.
 
 ### Installation
-To install in develop mode run ``pip install -e .`` from the repository folder.
+To install in develop mode, create a new environment with ``conda create -n [env_name] python=3.10``, activate with ``conda activate [env_name]`` then run ``pip install -e .`` from the repository folder.
 
 ### Usage
 See the notebooks folder for examples on rendering atlases and probes. The first time you use a particular atlas, the atlas and meshes will be fetched from brainglobe and saved to your machine.
