@@ -167,14 +167,12 @@ class NeuropixelsChronicHolder(AbstractBaseProbe):
         for col,actor in zip(self.active_colors,self.actors):
             #shnk.actor.prop.opacity = 1 #FIXME: opacity not working for some reason
             actor.prop.color = col
-        self.plotter.update()
 
     def make_inactive(self):
         self.active = False
         for col,actor in zip(self.inactive_colors,self.actors):
             #shnk.actor.prop.opacity = .2
             actor.prop.color = col
-        self.plotter.update()
 
 class CranialWindow5mm(VVASPBaseVisualizerClass):
     name = "Cranial Window - 5mm"

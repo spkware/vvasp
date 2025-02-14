@@ -57,7 +57,6 @@ class VVASPBaseVisualizerClass(ABC):
         #add the actors to the plotter
         for mesh in self.meshes:
             self.actors.append(self.plotter.add_mesh(mesh, **self.pyvista_mesh_args))
-        self.plotter.update()
 
     
 
@@ -129,7 +128,6 @@ class VVASPBaseVisualizerClass(ABC):
         # move the meshes
         for i,mesh in enumerate(self.meshes):
             mesh.shallow_copy(mesh.translate(position_shift))
-        self.plotter.update()
     
     def _rotate(self, angle_shift, increment=True):
         if increment:
@@ -147,12 +145,10 @@ class VVASPBaseVisualizerClass(ABC):
             points = old_rotation_matrix.T @ (mesh.points - self.origin).T
             mesh.points = (self.rotation_matrix @ points).T + self.origin
             mesh.shallow_copy(mesh)
-        self.plotter.update()
     
     def __del__(self):
         for actor in self.actors:
             self.plotter.remove_actor(actor)
-        self.plotter.update()
     
 class AbstractBaseProbe(VVASPBaseVisualizerClass):
     """Another abstract class that extends the base visualizer a bit to include some probe specific logic
@@ -273,7 +269,6 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
                 self.__compute_region_intersections()
         else:
             self.ball_mesh.shallow_copy(pv.Sphere(center=self.origin, radius=SPHERE_RADIUS))
-        self.plotter.update()
     
     def _rotate(self, angle_shift, increment=True):
         super()._rotate(angle_shift, increment)
@@ -283,32 +278,18 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
                 self.__compute_region_intersections()
         else:
             self.ball_mesh.shallow_copy(pv.Sphere(center=self.origin, radius=SPHERE_RADIUS))
-        self.plotter.update()
 
     def make_active(self):
         self.active = True
         for actor in self.actors:
             #shnk.actor.prop.opacity = 1 #FIXME: opacity not working for some reason
             actor.prop.color = ACTIVE_COLOR
-        self.plotter.update()
 
     def make_inactive(self):
         self.active = False
         for actor in self.actors:
             #shnk.actor.prop.opacity = .2
             actor.prop.color = INACTIVE_COLOR
-        self.plotter.update()
-    
-    def xyz_locations(self, resolution=1):
-        # returns a list of the brain regions that each shank (mesh) passes through
-        #TODO: return the brain regions that each shank (mesh passes thru)
-        # this could require ray tracing for speed, rather than an intersection
-        raise NotImplementedError()
-        # the following lines are from copilot, totally unteseted
-        if self.entry_point is None:
-            return []
-        else:
-            return brainglobe_atlas.get_structure_by_xyz(self.entry_point)
     
     @property
     def depth(self):

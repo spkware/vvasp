@@ -140,13 +140,11 @@ class VVASPAtlas:
                               silhouette=False,
                               **pv_kwargs)
         self.visible_region_actors.update({region_acronym: actor})
-        self.plotter.update()
     
     def remove_atlas_region_mesh(self, region_acronym):
         if region_acronym in self.visible_region_actors.keys():
             self.plotter.remove_actor(self.visible_region_actors[region_acronym])
             self.visible_region_actors.pop(region_acronym)
-            self.plotter.update()
         else:
             print(f'No region {region_acronym} to remove')
     
@@ -182,5 +180,4 @@ class VVASPAtlas:
             self.remove_atlas_region_mesh(region)
         self.plotter.remove_actor(self.root_actor)
         self.plotter.remove_actor(self.bregma_actor)
-        self.plotter.update()
         

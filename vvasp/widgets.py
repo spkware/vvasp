@@ -136,7 +136,7 @@ class VVASP(QMainWindow):
 
         self.viewMenu = self.menubar.addMenu('Windows')
         # toggleable action
-        self.toggle_action = QAction("Probe Path", self)
+        self.toggle_action = QAction("Probe Path View", self)
         self.toggle_action.setCheckable(True)
         self.toggle_action.triggered.connect(self.toggle_probe_path_window)
         self.viewMenu.addAction(self.toggle_action)
@@ -244,6 +244,7 @@ class VVASP(QMainWindow):
         for shortcut, (direction,multiplier) in self.dynamic_shortcuts.items():
             def _shortcut_handler_function(d=direction, m=multiplier):
                 self.objects[self.active_object].move(d, m) # connect the function to move the probe
+                self.plotter.update()
                 self._update_probe_position_text() # update the text box with the new position
                 if self.probe_path_window is not None: 
                     self.probe_path_window.update_probe_path_plot() # update the probe path plot
@@ -322,6 +323,7 @@ class VVASP(QMainWindow):
             self.vvasp_atlas.remove_atlas_region_mesh(acronym)
         elif state == 2:
             self.vvasp_atlas.add_atlas_region_mesh(acronym)
+        self.plotter.update()
 
     def _load_experiment(self, filename=None):
         if filename is None:
@@ -431,7 +433,7 @@ class VVASP(QMainWindow):
         if len(self.objects) > 1:
             self.update_active_object((self.active_object - 1) % len(self.objects))
     
-    def delete_object(self): # Todo: verify this works
+    def delete_object(self):
         if len(self.objects) > 0:
             self.objects.pop(self.active_object)
             if len(self.objects) > 0:
@@ -541,7 +543,7 @@ class ProbePathWindow(QWidget):
         layout.addWidget(self.plot)
 
     def update_probe_path_plot(self):
-        self.update_timer.start(80)  # only update the plot after 80ms break to not bog down main app
+        self.update_timer.start(300)  # only update the plot after some time break to not bog down main app
         
     def _update_probe_path_plot(self):
         # get the active probe
