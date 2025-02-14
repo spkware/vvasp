@@ -72,7 +72,8 @@ class Probe(AbstractBaseProbe):
         '''Used for tracking the regions that each shank is in'''
         dims = np.stack(self.shank_dims_um) # shanks by dims
         offsets = np.stack(self.shank_offsets_um)
-        offsets[:,0] = offsets[:,0] + dims[:,0] / 2
+        offsets[:,0] = offsets[:,0] + dims[:,0] / 2 
+        offsets[:,2] = offsets[:,2] + dims[:,2] / 2 
         rotated_offsets = np.dot(offsets, self.rotation_matrix.T)
         return rotated_offsets + self.origin
 

@@ -53,6 +53,7 @@ def get_blackrock_array_geometry(nx, ny, pitch_um=400, shank_dims=[40, 1_000, 0]
 
     x_grid, y_grid, z_grid = np.meshgrid(x_positions, y_positions, z_positions)
     list_of_coordinates = np.vstack((x_grid.ravel(), y_grid.ravel(), z_grid.ravel())).T.tolist()
+    list_of_coordinates = list_of_coordinates[:(nx*ny)]
     list_of_shank_dims = [shank_dims for _ in range(nx*ny)]
     return list_of_coordinates, list_of_shank_dims
 

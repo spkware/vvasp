@@ -245,7 +245,8 @@ class VVASP(QMainWindow):
             def _shortcut_handler_function(d=direction, m=multiplier):
                 self.objects[self.active_object].move(d, m) # connect the function to move the probe
                 self._update_probe_position_text() # update the text box with the new position
-                self.probe_path_window.update_probe_path_plot() # update the probe path plot
+                if self.probe_path_window is not None: 
+                    self.probe_path_window.update_probe_path_plot() # update the probe path plot
             func = lambda d=direction,m=multiplier:_shortcut_handler_function(d,m)
             shortcut.activated.connect(func)
         self.shortcuts_connected = True
