@@ -1,5 +1,5 @@
 from .utils import *
-from .io import probe_geometries
+from .io import probe_geometries, preferences
 from .BaseVizClasses import VVASPBaseVisualizerClass, AbstractBaseProbe, ACTIVE_COLOR, INACTIVE_COLOR
 
 class CustomMeshObject(VVASPBaseVisualizerClass):
@@ -191,19 +191,19 @@ class Neuron(VVASPBaseVisualizerClass):
         pass
 
 
-#def get_classes():
-#    import inspect
-#    current_module = sys.modules[__name__]
-#    classes = {}
-#    for name, obj in inspect.getmembers(current_module):
-#        if inspect.isclass(obj) and inspect.getmodule(obj) == current_module:
-#            classes.update({obj.name: obj})
-#    classes.pop('Probe')
-#    for prbname in probe_geometries.keys():
-#        classes.update({prbname: Probe})
-#    return classes
 
-from functools import partial
+#################### GUI functionality - provide objects to the gui ####################
+#from functools import partial
+#from PyQt5.QtWidgets import QFileDialog
+#
+#def create_custom_mesh_object(plotter, starting_position, starting_angles, **kwargs):
+#    from .widgets import VVASPPlanner
+#    file_name, _ = QFileDialog.getOpenFileName(None,"Select a mesh file", preferences['default_save_dir'],) 
+#    starting_position = [0,0,0]
+#    starting_angles = [0,0,0]
+#    obj = partial(CustomMeshObject, mesh_path=file_name, starting_position=starting_position, starting_angles=starting_angles)
+#    return obj
+
 availible_viz_classes_for_gui = {'CustomMeshObject [NOT IMPLEMENTED]': CustomMeshObject, #objects availible to the PyQt GUI
                                  'NP24': partial(Probe,'NP24'),
                                  'NP1': partial(Probe,'NP1'),

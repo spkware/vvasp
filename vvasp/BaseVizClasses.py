@@ -19,7 +19,9 @@ class VVASPBaseVisualizerClass(ABC):
                  starting_position=(0,0,0),
                  starting_angles=(0,0,0),
                  active=True,
-                 pyvista_mesh_args=None,): # a list of dicts with keyword arguments for plotter.add_mesh()
+                 pyvista_mesh_args=None,
+                 info=None): # a list of dicts with keyword arguments for plotter.add_mesh()
+        self.info = info
         if pyvista_mesh_args is None:
             pyvista_mesh_args = {}
         self.plotter = vistaplotter

@@ -46,7 +46,7 @@ import pyqtgraph as pg
 from pyvistaqt import BackgroundPlotter, QtInteractor, MainWindow
 
 
-class VVASP(QMainWindow):
+class VVASPPlanner(QMainWindow):
     DEFAULT_WIDTH = 2280
     DEFAULT_HEIGHT = 1520
     def __init__(self,
@@ -56,11 +56,11 @@ class VVASP(QMainWindow):
                  max_tree_depth=8):
         # filename will be letting you plot the same probes again
         # It'll be just a human readable JSON file.
-        super(VVASP,self).__init__()
+        super(VVASPPlanner,self).__init__()
         self.probe_path_window = None
         self.filename = experiment_file
-        self.setWindowTitle('VVASP')
-        self.resize(VVASP.DEFAULT_WIDTH,VVASP.DEFAULT_HEIGHT)
+        self.setWindowTitle('VVASP Surgical Planner')
+        self.resize(VVASPPlanner.DEFAULT_WIDTH,VVASPPlanner.DEFAULT_HEIGHT)
         self.objects = []
         self.active_object = None
         self.visible_regions = []

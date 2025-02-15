@@ -33,11 +33,11 @@ def main():
 
     opts = parser.parse_args()
 
-    from .widgets import QApplication, VVASP
+    from .widgets import QApplication, VVASPPlanner
     app = QApplication(sys.argv)
     #w = VVASP(filename = opts.filename,
     #          atlas_name = opts.atlas,)
-    w = VVASP(**vars(opts))
+    w = VVASPPlanner(**vars(opts))
     sys.exit(app.exec_())
     
 if __name__ == '__main__':

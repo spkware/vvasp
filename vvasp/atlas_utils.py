@@ -49,7 +49,7 @@ class VVASPAtlas:
         self.max_tree_depth = max_tree_depth
         self.maxdepth = maxdepth
         self.bregma_location = np.array(io.preferences['atlas_transformations'][self.name]['bregma_location'])*metadata['resolution']
-        print(self.bregma_location, flush=True)
+        #print(self.bregma_location, flush=True)
         self.metadata = metadata
 
     def initialize(self, show_root=True, show_bregma=True):
