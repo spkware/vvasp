@@ -43,7 +43,7 @@ A brief overview of the default keybinds for probe movement:
 
 __IMPORTANT:__ The buttons used to adjust the probe position by clicking don't work right now. Rather than clicking the buttons with the mouse or manually entering position values, use the keybinds to move the probes where you want.
 
-Currently, the GUI supports Neuropixels 1.0/2.0 alpha/2.0, 10x10 Utah, and [Neuropixels chronic holders](https://github.com/spkware/chronic_holder) (Melin et al. 2024). In the future, it will support loading, viewing, and manipulating any user-provided mesh file.
+Currently, the GUI supports Neuropixels 1.0/2.0 alpha/2.0, 10x10 Utah, and [Neuropixels chronic holders](https://github.com/spkware/chronic_holder) (Melin et al. 2024). It also supports loading, viewing, and manipulating any user-provided mesh file (See below).
 
 Experiments can be saved and loaded from the taskbar.
 
