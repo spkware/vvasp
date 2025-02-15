@@ -20,7 +20,8 @@ class VVASPBaseVisualizerClass(ABC):
                  starting_angles=(0,0,0),
                  active=True,
                  pyvista_mesh_args=None,
-                 info=None): # a list of dicts with keyword arguments for plotter.add_mesh()
+                 info=None,
+                 **kwargs): # a list of dicts with keyword arguments for plotter.add_mesh()
         self.info = info
         if pyvista_mesh_args is None:
             pyvista_mesh_args = {}
@@ -59,8 +60,6 @@ class VVASPBaseVisualizerClass(ABC):
         #add the actors to the plotter
         for mesh in self.meshes:
             self.actors.append(self.plotter.add_mesh(mesh, **self.pyvista_mesh_args))
-
-    
 
     def set_location(self,origin,angles):
         self._rotate(angles,increment = False)
@@ -147,6 +146,19 @@ class VVASPBaseVisualizerClass(ABC):
             points = old_rotation_matrix.T @ (mesh.points - self.origin).T
             mesh.points = (self.rotation_matrix @ points).T + self.origin
             mesh.shallow_copy(mesh)
+
+            
+    def make_active(self):
+        self.active = True
+        for actor in self.actors:
+            #shnk.actor.prop.opacity = 1 #FIXME: opacity not working for some reason
+            actor.prop.color = ACTIVE_COLOR
+
+    def make_inactive(self):
+        self.active = False
+        for actor in self.actors:
+            #shnk.actor.prop.opacity = .2
+            actor.prop.color = INACTIVE_COLOR
     
     def __del__(self):
         for actor in self.actors:
@@ -165,8 +177,7 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
                  active=True,
                  ray_trace_intersection=True,
                  vvasp_atlas=None,
-                 info=None):
-        self.info = info # used to save the probe properties to a file
+                 **kwargs):
         self.entry_point = None
         if not ray_trace_intersection or vvasp_atlas is None:
             self.ray_trace_intersection = False #if no atlas mesh is passed, we cant ray trace the insertion
@@ -185,7 +196,7 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
 
         
 
-        super().__init__(vistaplotter, starting_position, starting_angles, active)
+        super().__init__(vistaplotter, starting_position, starting_angles, active, **kwargs)
 
         if active:
             self.make_active()
@@ -281,17 +292,7 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
         else:
             self.ball_mesh.shallow_copy(pv.Sphere(center=self.origin, radius=SPHERE_RADIUS))
 
-    def make_active(self):
-        self.active = True
-        for actor in self.actors:
-            #shnk.actor.prop.opacity = 1 #FIXME: opacity not working for some reason
-            actor.prop.color = ACTIVE_COLOR
 
-    def make_inactive(self):
-        self.active = False
-        for actor in self.actors:
-            #shnk.actor.prop.opacity = .2
-            actor.prop.color = INACTIVE_COLOR
     
     @property
     def depth(self):

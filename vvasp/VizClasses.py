@@ -1,5 +1,5 @@
 from .utils import *
-from .io import probe_geometries, preferences
+from .io import probe_geometries, preferences, custom_user_mesh_transformations
 from .BaseVizClasses import VVASPBaseVisualizerClass, AbstractBaseProbe, ACTIVE_COLOR, INACTIVE_COLOR
 
 class CustomMeshObject(VVASPBaseVisualizerClass):
@@ -20,12 +20,15 @@ class CustomMeshObject(VVASPBaseVisualizerClass):
                  starting_angles=(0,0,0),
                  active=True,
                  **kwargs):
+        if isinstance(mesh_paths, (str, Path)):
+            mesh_paths = [mesh_paths]
         self.mesh_paths = mesh_paths
         self.scale_factor = scale_factor
         self.mesh_origin = mesh_origin
         self.mesh_rotation = mesh_rotation
+        self.ray_trace_intersection = False
         super().__init__(vistaplotter, starting_position, starting_angles, active, pyvista_mesh_args, **kwargs)
-
+        
 
     def create_meshes(self):
         # Your mesh creation logic here
@@ -40,6 +43,7 @@ class CustomMeshObject(VVASPBaseVisualizerClass):
             #rotated_translation = rotation_matrix_from_degrees(*self.mesh_rotation).T @ self.mesh_origin # the translation of the mesh must be rotated into new axes
             #mesh = mesh.translate(rotated_translation)
             self.meshes.append(mesh)
+    
 
 class Probe(AbstractBaseProbe):
     name = "Probe"
@@ -193,19 +197,8 @@ class Neuron(VVASPBaseVisualizerClass):
 
 
 #################### GUI functionality - provide objects to the gui ####################
-#from functools import partial
-#from PyQt5.QtWidgets import QFileDialog
-#
-#def create_custom_mesh_object(plotter, starting_position, starting_angles, **kwargs):
-#    from .widgets import VVASPPlanner
-#    file_name, _ = QFileDialog.getOpenFileName(None,"Select a mesh file", preferences['default_save_dir'],) 
-#    starting_position = [0,0,0]
-#    starting_angles = [0,0,0]
-#    obj = partial(CustomMeshObject, mesh_path=file_name, starting_position=starting_position, starting_angles=starting_angles)
-#    return obj
 
-availible_viz_classes_for_gui = {'CustomMeshObject [NOT IMPLEMENTED]': CustomMeshObject, #objects availible to the PyQt GUI
-                                 'NP24': partial(Probe,'NP24'),
+availible_viz_classes_for_gui = {'NP24': partial(Probe,'NP24'),
                                  'NP1': partial(Probe,'NP1'),
                                  'utah10x10': partial(Probe,'utah10x10'),
                                  'NP2 chronic holder - head fixed': partial(NeuropixelsChronicHolder,'NP24','head_fixed'),
@@ -215,3 +208,21 @@ availible_viz_classes_for_gui = {'CustomMeshObject [NOT IMPLEMENTED]': CustomMes
                                  'NP1 chronic holder - head fixed': partial(NeuropixelsChronicHolder,'NP1','head_fixed'),
                                  'NP1 chronic holder - freely moving': partial(NeuropixelsChronicHolder,'NP1','freely_moving'),
                                  'Cranial Window - 5mm [NOT IMPLEMENTED]': CranialWindow5mm,}
+
+####### We will also expose custom mesh objects below.  #################################
+# To add your own objects: 
+# 1. Add your mesh to the custom_user_meshes folder
+# 2. Provide the transformations in custom_user_mesh_transformations.json accordingly
+# 3. They will automatically populate in the GUI
+########################################################################################
+
+custom_object_files = list((Path(preferences['user_mesh_dir'])).glob('*'))
+for file in custom_object_files:
+    transforms = custom_user_mesh_transformations[file.stem]
+    obj = partial(CustomMeshObject, 
+                  mesh_paths=file,
+                  scale_factor=transforms['scale'],
+                  mesh_rotation=transforms['angles'],
+                  mesh_origin=transforms['origin'],)
+    new_name = f'{file.stem} [CUSTOM OBJECT]'
+    availible_viz_classes_for_gui[new_name] = obj

@@ -420,7 +420,7 @@ class VVASPPlanner(QMainWindow):
         zero_position = [[0,0,0], [90,0,0]]
         # TODO: show the savename of the selected probe in the gui
         info, _ = QInputDialog.getText(self, 'Input Dialog', 'Enter a name for this probe:') 
-        new_object = object_class(self.plotter, *zero_position, active=True, info=info, ray_trace_intersection=True, vvasp_atlas=self.vvasp_atlas)
+        new_object = object_class(vistaplotter=self.plotter, starting_position=[0,0,0], starting_angles=[90,0,0], active=True, info=info, ray_trace_intersection=True, vvasp_atlas=self.vvasp_atlas)
         self.objects.append(new_object)
         active_object = len(self.objects) - 1
         self.update_active_object(active_object)
@@ -455,6 +455,7 @@ class VVASPPlanner(QMainWindow):
                 prb.make_active() #this recolors the mesh
             else:
                 prb.make_inactive()
+            self.plotter.update()
         
         # update the positon text
         self._update_probe_position_text()
@@ -479,8 +480,8 @@ class VVASPPlanner(QMainWindow):
             return
         else:
             prb = self.objects[self.active_object]
-        self.show_entrypoint=True #FIXME: this is a hack to show the entrypoint for the time being
-        if self.show_entrypoint:
+        self.show_entrypoint=True #FIXME: this is a hack to always show the entrypoint for the time being
+        if self.show_entrypoint and self.objects[self.active_object].ray_trace_intersection:
             if prb.entry_point is not None:
                 self.xline.setValue(prb.entry_point[1])
                 self.yline.setValue(prb.entry_point[0]) 
@@ -495,7 +496,7 @@ class VVASPPlanner(QMainWindow):
             self.xline.setValue(prb.origin[1])
             self.yline.setValue(prb.origin[0]) 
             self.zline.setValue(prb.origin[2])
-            self.depthline.setValue(prb.depth)
+            self.depthline.setValue(0)
 
         self.xangline.setValue(prb.angles[0]) 
         self.yangline.setValue(prb.angles[2]) 
@@ -548,6 +549,8 @@ class ProbePathWindow(QWidget):
     def _update_probe_path_plot(self):
         # get the active probe
         if self.main_window.active_object is None:
+            return
+        if not self.main_window.objects[self.main_window.active_object].ray_trace_intersection:
             return
         self.plot.clear()
         n_shanks = len(self.main_window.objects[self.main_window.active_object].shank_origins)

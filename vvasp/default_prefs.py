@@ -8,10 +8,12 @@ STATIC_KEYBINDS_FILE = Path().home() / 'vvasp' / 'static_keybinds.json'
 EXPERIMENT_DIR = Path().home() / 'vvasp' / 'experiments'
 MESH_DIR = Path(__file__).resolve().parents[1] / 'meshes'
 EXPORT_DIR = Path().home() / 'vvasp' / 'exports'
+USER_MESH_DIR = Path().home() / 'vvasp' / 'custom_user_meshes'
+USER_MESH_TRANSFORMATIONS_FILE = Path().home() / 'vvasp' / 'custom_user_mesh_transformations.json'
 ATLAS_DIR = Path().home() /'.brainglobe'
 
 
-ALL_PREF_FILES = [PREFS_FILE, MOVEMENT_KEYBINDS_FILE, STATIC_KEYBINDS_FILE, PROBE_GEOMETRIES_FILE]
+ALL_PREF_FILES = [PREFS_FILE, MOVEMENT_KEYBINDS_FILE, STATIC_KEYBINDS_FILE, PROBE_GEOMETRIES_FILE, USER_MESH_TRANSFORMATIONS_FILE]
 
 
 DEFAULT_PREFERENCES = {'default_atlas':'allen_mouse_25um',
@@ -24,10 +26,16 @@ DEFAULT_PREFERENCES = {'default_atlas':'allen_mouse_25um',
                                          'angles':[90, -4, 90]}, # -4 corrects for a small tilt in the atlas
                                },
                        'default_save_dir':str(EXPERIMENT_DIR),
+                       'user_mesh_dir':str(USER_MESH_DIR),
+                       'export_dir':str(EXPORT_DIR),
                        'atlas_dir':str(ATLAS_DIR), # the location of brainglobe atlas files
                        'warn_collisions':True,
                        'warn_overwrite':True,
                        'warn_delete':True,}
+
+USER_MESH_TRANSFORMATIONS = {'logo':{'angles':[0, 0, 0],
+                                     'origin':[0, 0, 0],
+                                     'scale':1000}}
 
 DEFAULT_MOVEMENT_KEYBINDS = {'a': ['left', 100],
                              'd': ['right', 100],
@@ -93,4 +101,4 @@ DEFAULT_PROBE_GEOMETRIES = {'NP1': {'full_name': 'Neuropixels 1.0',
                                      'shank_offsets_um': __utah10x10coords,
                                      'shank_dims_um': __utah10x10dims},}
 
-ALL_PREFS = [DEFAULT_PREFERENCES, DEFAULT_MOVEMENT_KEYBINDS, DEFAULT_STATIC_KEYBINDS, DEFAULT_PROBE_GEOMETRIES]
+ALL_PREFS = [DEFAULT_PREFERENCES, DEFAULT_MOVEMENT_KEYBINDS, DEFAULT_STATIC_KEYBINDS, DEFAULT_PROBE_GEOMETRIES, USER_MESH_TRANSFORMATIONS]

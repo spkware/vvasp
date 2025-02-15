@@ -1,9 +1,11 @@
 from .utils import *
+import shutil
 import os
 from .default_prefs import (ALL_PREFS, 
                             DEFAULT_PROBE_GEOMETRIES,
                             EXPERIMENT_DIR,
                             MESH_DIR,
+                            USER_MESH_DIR,
                             EXPORT_DIR,
                             ALL_PREF_FILES, 
                             PREFS_FILE, 
@@ -12,6 +14,7 @@ from .default_prefs import (ALL_PREFS,
                             DEFAULT_MOVEMENT_KEYBINDS, 
                             PROBE_GEOMETRIES_FILE,
                             STATIC_KEYBINDS_FILE,
+                            USER_MESH_TRANSFORMATIONS_FILE,
                             DEFAULT_STATIC_KEYBINDS)
 
 def __fix_json_indent(text):
@@ -30,6 +33,14 @@ def __setup_prefs():
     if not MESH_DIR.exists():
         print(f'Creating mesh directory at {MESH_DIR}')
         MESH_DIR.mkdir()
+    
+    if not USER_MESH_DIR.exists():
+        print(f'Creating user mesh directory at {USER_MESH_DIR}')
+        USER_MESH_DIR.mkdir()
+        sourcepath = Path(__file__).resolve().parents[1] / 'meshes' / 'logo.stl'
+        destpath = Path(USER_MESH_DIR) / 'logo.stl'
+        print(sourcepath, destpath)
+        shutil.copy(sourcepath, destpath)
 
     if not PREFS_FILE.parent.exists():
         PREFS_FILE.parent.mkdir()
@@ -66,8 +77,12 @@ def __load_prefs():
     for k in DEFAULT_PROBE_GEOMETRIES:
         if k not in prefs.keys():
             probe_geometries[k] = DEFAULT_PROBE_GEOMETRIES[k]
+    
+    with open(USER_MESH_TRANSFORMATIONS_FILE,'r') as fd:
+        custom_user_mesh_transformations = json.load(fd)
+    
 
-    return prefs, movement_keybinds, static_keybinds, probe_geometries
+    return prefs, movement_keybinds, static_keybinds, probe_geometries, custom_user_mesh_transformations
 
 def list_experiments():
     raise NotImplementedError
@@ -109,4 +124,4 @@ def load_structure_mesh(atlaspath,structures,acronym):
 if not PREFS_FILE.exists():
     __setup_prefs()
 
-preferences, movement_keybinds, static_keybinds, probe_geometries = __load_prefs()
+preferences, movement_keybinds, static_keybinds, probe_geometries, custom_user_mesh_transformations = __load_prefs()
