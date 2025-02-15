@@ -1,4 +1,6 @@
 # vvasp
+[![DOI](https://zenodo.org/badge/754298641.svg)](https://doi.org/10.5281/zenodo.14873866)
+
 Volume Visualization and Stereotaxic Planning (pronounced wasp 🐝)
 
 <img src="https://github.com/user-attachments/assets/fd96a55b-4a2f-40a4-9c74-dcc47aac1867" width="700">
