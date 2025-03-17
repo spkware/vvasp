@@ -15,6 +15,7 @@ from .default_prefs import (ALL_PREFS,
                             PROBE_GEOMETRIES_FILE,
                             STATIC_KEYBINDS_FILE,
                             USER_MESH_TRANSFORMATIONS_FILE,
+                            USER_MESH_TRANSFORMATIONS,
                             DEFAULT_STATIC_KEYBINDS)
 
 def __fix_json_indent(text):
@@ -77,10 +78,11 @@ def __load_prefs():
     for k in DEFAULT_PROBE_GEOMETRIES:
         if k not in prefs.keys():
             probe_geometries[k] = DEFAULT_PROBE_GEOMETRIES[k]
-    
-    with open(USER_MESH_TRANSFORMATIONS_FILE,'r') as fd:
-        custom_user_mesh_transformations = json.load(fd)
-    
+    if USER_MESH_TRANSFORMATIONS_FILE.exists():
+        with open(USER_MESH_TRANSFORMATIONS_FILE,'r') as fd:
+            custom_user_mesh_transformations = json.load(fd)
+    else:
+        custom_user_mesh_transformations = USER_MESH_TRANSFORMATIONS
 
     return prefs, movement_keybinds, static_keybinds, probe_geometries, custom_user_mesh_transformations
 

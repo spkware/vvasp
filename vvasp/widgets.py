@@ -40,6 +40,7 @@ from PyQt5.QtWidgets import (QWidget,
                              QFileDialog,
                              QDialog,
                              QInputDialog)
+
 from PyQt5.QtGui import QContextMenuEvent, QImage, QKeyEvent, QPixmap,QBrush,QPen,QColor,QFont,QKeySequence
 from PyQt5.QtCore import Qt,QSize,QRectF,QLineF,QPointF,QTimer,QSettings
 import pyqtgraph as pg
@@ -567,7 +568,6 @@ class ProbePathWindow(QWidget):
                     color = self.main_window.vvasp_atlas.colormap[ac]
                 bar = pg.BarGraphItem(x=i, width=.2, y0=y0 , y1=y1, brush=color)
                 self.plot.addItem(bar)
-
         # add the text of the regions to the plot
         for i, (acc, bound) in enumerate(zip(acronyms, boundaries)): # iterate over shanks
             # get the midpoints of boundaries
