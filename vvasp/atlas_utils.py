@@ -85,9 +85,7 @@ class VVASPAtlas:
         if show_bregma:
             self.bregma_actor = self.plotter.add_mesh(io.pv.Sphere(radius=100, center=(0,0,0)))
 
-        r_angles = -self.rotation_angles
-        self.rotmat = rotation_matrix_from_degrees(*r_angles, order='zyx') # used to get the annotations
-
+        self.rotmat = rotation_matrix_from_degrees(*self.rotation_angles, order='xyz') # used to get the annotations
         self.annotations = imread(self.atlas_path/'annotation.tiff')
 
     def bregma_positions_to_structures(self, positions_um):
@@ -96,10 +94,10 @@ class VVASPAtlas:
         return region_acronyms
 
     def bregma_positions_to_atlas_voxels(self, positions_um):
-        positions_um = np.dot(positions_um, self.rotmat.T)
+        positions_um = np.dot(positions_um, self.rotmat)
         positions_um = positions_um + self.bregma_location
         voxels = np.array(np.round(positions_um / self.bg_atlas.metadata['resolution'])).astype(int)
-        voxels = np.clip(voxels, 0, np.array(self.bg_atlas.annotation.shape)-1)
+        #voxels = np.clip(voxels, 0, np.array(self.bg_atlas.annotation.shape)-1)
         return voxels
 
     def atlas_voxels_to_annotation_boundaries(self,bresenham_line, return_midpoints=False):
