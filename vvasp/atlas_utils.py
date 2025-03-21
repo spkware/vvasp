@@ -9,7 +9,7 @@ class VVASPAtlas:
     ''' 
     Wraps the brainglobe atlas (bg_atlas) to provide funcitonality for showing and hiding meshes
     '''
-    def __init__(self, vistaplotter, atlas_name=None, min_tree_depth=3, max_tree_depth=7):
+    def __init__(self, vistaplotter, atlas_name=None, show_root=True, min_tree_depth=3, max_tree_depth=7):
         if atlas_name is None:
             atlas_name = io.preferences['default_atlas']
         self.name = atlas_name
@@ -19,7 +19,7 @@ class VVASPAtlas:
         self.meshcols = {}
         self.fetch_atlas(atlas_name)
         self.load_atlas_metadata(min_tree_depth, max_tree_depth)
-        self.initialize()
+        self.initialize(show_root=show_root)
         
     def fetch_atlas(self, force_redownload=False):
         from brainglobe_atlasapi import BrainGlobeAtlas, show_atlases
@@ -35,7 +35,6 @@ class VVASPAtlas:
             structures = io.json.load(fd)
         with open(self.atlas_path/'metadata.json','r') as fd:
             metadata = io.json.load(fd)
-        maxdepth = np.max([len(p['structure_id_path']) for p in structures]) #get max tree depth
         temp = pd.DataFrame(structures)
         self.colormap = temp[['acronym','rgb_triplet']].set_index('acronym').to_dict()['rgb_triplet']
         self.colormap['Outside atlas'] = [0,0,0] # manually add this
@@ -47,9 +46,7 @@ class VVASPAtlas:
         self.structures = pd.DataFrame(structures)    
         self.min_tree_depth = min_tree_depth
         self.max_tree_depth = max_tree_depth
-        self.maxdepth = maxdepth
         self.bregma_location = np.array(io.preferences['atlas_transformations'][self.name]['bregma_location'])*metadata['resolution']
-        #print(self.bregma_location, flush=True)
         self.metadata = metadata
 
     def initialize(self, show_root=True, show_bregma=True):
@@ -119,7 +116,19 @@ class VVASPAtlas:
                 midpoints = ((region_boundaries[:-1] + region_boundaries[1:]) / 2).astype(int)
             return region_boundaries, midpoints
 
+    def show_all_regions(self, side='both', **pv_kwargs):
+        for r in self.structures.acronym:
+            self.add_atlas_region_mesh(r, side=side, force_replot=False, **pv_kwargs)
+
     def add_atlas_region_mesh(self, region_acronym, side='both', force_replot=False, **pv_kwargs):
+        PV_KWARG_DEFAULTS = dict(opacity=.7,
+                                 render=False,
+                                 silhouette=False) 
+        # update user kwargs with defaults if they dont exist
+        for k in PV_KWARG_DEFAULTS.keys():
+            if k not in pv_kwargs.keys():
+                pv_kwargs[k] = PV_KWARG_DEFAULTS[k]
+
         if region_acronym in self.visible_region_actors.keys() and not force_replot:
             return #don't replot the same region
         m = self.meshes[region_acronym]
@@ -131,11 +140,9 @@ class VVASPAtlas:
             pass
         else:
             raise ValueError(f'Invalid side {side}')
+
         actor = self.plotter.add_mesh(m,
                               color=self.meshcols[region_acronym],
-                              opacity = 0.7,
-                              render=False,
-                              silhouette=False,
                               **pv_kwargs)
         self.visible_region_actors.update({region_acronym: actor})
     
