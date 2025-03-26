@@ -46,15 +46,15 @@ from PyQt5.QtCore import Qt,QSize,QRectF,QLineF,QPointF,QTimer,QSettings
 import pyqtgraph as pg
 from pyvistaqt import BackgroundPlotter, QtInteractor, MainWindow
 
-
 class VVASPPlanner(QMainWindow):
     DEFAULT_WIDTH = 2280
     DEFAULT_HEIGHT = 1520
     def __init__(self,
                  experiment_file=None,
                  atlas_name=None,
-                 min_tree_depth=6,
-                 max_tree_depth=8):
+                 mapping='Beryl',
+                 min_tree_depth=None,
+                 max_tree_depth=None):
         # filename will be letting you plot the same probes again
         # It'll be just a human readable JSON file.
         super(VVASPPlanner,self).__init__()
@@ -80,7 +80,7 @@ class VVASPPlanner(QMainWindow):
         
         self.vistaframe.setLayout(self.vlayout)
         self.setCentralWidget(self.vistaframe)
-        self.vvasp_atlas = atlas_utils.VVASPAtlas(self.plotter, min_tree_depth=min_tree_depth, max_tree_depth=max_tree_depth) #TODO: allow the user to update tree depth
+        self.vvasp_atlas = atlas_utils.VVASPAtlas(self.plotter, mapping=mapping, min_tree_depth=min_tree_depth, max_tree_depth=max_tree_depth)
 
         self.plotter.track_click_position(
             callback=lambda x: print(x,flush=True),
@@ -337,8 +337,9 @@ class VVASPPlanner(QMainWindow):
         print(experiment_data['atlas'], flush=True)
         self.vvasp_atlas = atlas_utils.VVASPAtlas(self.plotter,
                                             atlas_name=experiment_data['atlas']['name'],
-                                            min_tree_depth=experiment_data['atlas']['min_tree_depth'],
-                                            max_tree_depth=experiment_data['atlas']['max_tree_depth'])
+                                            mapping=experiment_data['atlas'].get('mapping',None),
+                                            min_tree_depth=experiment_data['atlas'].get('min_tree_depth',None),
+                                            max_tree_depth=experiment_data['atlas'].get('max_tree_depth',None))
 
         for r in experiment_data['atlas']['visible_regions']:
             self.vvasp_atlas.add_atlas_region_mesh(r)
@@ -375,7 +376,7 @@ class VVASPPlanner(QMainWindow):
             self._disconnect_shortcuts()
         self.objects = []
         #del self.vvasp_atlas
-        self.vvasp_atlas = atlas_utils.VVASPAtlas(self.plotter, min_tree_depth=6, max_tree_depth=8) #TODO: allow the user to update tree depth
+        self.vvasp_atlas = atlas_utils.VVASPAtlas(self.plotter, mapping='Beryl', min_tree_depth=None, max_tree_depth=None) #TODO: allow the user to update tree depth
         self.active_object = None
         self.filename = None
         self.bottom_horizontal_widgets.removeWidget(self.atlas_view_box)

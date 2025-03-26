@@ -23,12 +23,17 @@ def main():
 
     parser.add_argument('--min_tree_depth',
                         type=int,
-                        default=6,
+                        default=None,
                         nargs="?")
 
     parser.add_argument('--max_tree_depth',
                         type=int,
-                        default=8,
+                        default=None,
+                        nargs="?")
+
+    parser.add_argument('--mapping',
+                        type=str,
+                        default='Beryl',
                         nargs="?")
 
     opts = parser.parse_args()
