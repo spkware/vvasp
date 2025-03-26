@@ -153,8 +153,10 @@ class VVASPAtlas:
                 midpoints = ((region_boundaries[:-1] + region_boundaries[1:]) / 2).astype(int)
             return region_boundaries, midpoints
 
-    def show_all_regions(self, side='both', **pv_kwargs):
+    def show_all_regions(self, side='both', add_root=False, **pv_kwargs):
         for r in self.structures.acronym:
+            if r == 'root' and not add_root:
+                continue
             self.add_atlas_region_mesh(r, side=side, force_replot=False, **pv_kwargs)
 
     def add_atlas_region_mesh(self, region_acronym, side='both', force_replot=False, **pv_kwargs):
