@@ -15,7 +15,7 @@ def main():
                         default=None,
                         nargs="?")
     
-    parser.add_argument('--atlas_name',
+    parser.add_argument('-a','--atlas_name',
                         metavar='atlas',
                         type=str,
                         default=None,

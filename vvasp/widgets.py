@@ -80,7 +80,7 @@ class VVASPPlanner(QMainWindow):
         
         self.vistaframe.setLayout(self.vlayout)
         self.setCentralWidget(self.vistaframe)
-        self.vvasp_atlas = atlas_utils.VVASPAtlas(self.plotter, mapping=mapping, min_tree_depth=min_tree_depth, max_tree_depth=max_tree_depth)
+        self.vvasp_atlas = atlas_utils.VVASPAtlas(self.plotter, atlas_name=atlas_name, mapping=mapping, min_tree_depth=min_tree_depth, max_tree_depth=max_tree_depth)
 
         self.plotter.track_click_position(
             callback=lambda x: print(x,flush=True),
