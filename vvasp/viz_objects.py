@@ -1,6 +1,6 @@
 from .utils import *
 from .io import probe_geometries, preferences, custom_user_mesh_transformations
-from .BaseVizClasses import VVASPBaseVisualizerClass, AbstractBaseProbe, ACTIVE_COLOR, INACTIVE_COLOR
+from .base_viz_objects import VVASPBaseVisualizerClass, AbstractBaseProbe, ACTIVE_COLOR, INACTIVE_COLOR
 
 class CustomMeshObject(VVASPBaseVisualizerClass):
     """
