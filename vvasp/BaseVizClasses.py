@@ -95,7 +95,7 @@ class VVASPBaseVisualizerClass(ABC):
             self._move(position_shift.astype(int))
         elif direction == 'home':
             self._move(np.array([0, 0, 0]), increment=False)
-            self._rotate(np.array([-90, 0, 0]), increment=False)
+            self._rotate(np.array([90, 0, 0]), increment=False)
 
     def _move(self, position_shift, increment=True, **kwargs):
         if increment:
