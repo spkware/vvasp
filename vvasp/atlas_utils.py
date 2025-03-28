@@ -19,8 +19,9 @@ class VVASPAtlas:
 
     1. Manages mapping of sub-regions to their parents (one might not necessarily need the full parcellation of an atlas).
     2. Transforms between bregma space (ml, ap, dv) and atlas space (voxels), agnostic to the coordinate system of the atlas used.
-    3. Provides a simple interface to plot regions of the atlas in 3D using pyvista, the meshes are all automatically transformed from the atlas space to the bregma anatomical space.
-    4. Provides an interface to plot 2D slices of the atlas annotation volume.
+    3. Compute the path of a probe or other object through the atlas and get the regions it traverses.
+    4. Provides a simple interface to plot regions of the atlas in 3D using pyvista, the meshes are all automatically transformed from the atlas space to the bregma anatomical space.
+    5. Provides an interface to plot 2D slices of the atlas annotation volume.
     '''
     def __init__(self, vistaplotter=None, atlas_name=None, show_root=True, show_bregma=True, mapping='Beryl', min_tree_depth=None, max_tree_depth=None):
         if mapping is None:
@@ -202,6 +203,26 @@ class VVASPAtlas:
     ##################################
 
     def plot_2d_slice(self, slice_plane, slice_location_um, ax=None):
+        """
+        Plot a 2D slice from the atlas annotation volume at a given location and plane.
+        Options for slice plane are 'coronal', 'sagittal', 'transverse'.
+        slice_location_um is the location of the slice in micrometers (relative to bregma).
+        The remapped annotation is returned by default, if return_full_annotation is set to True, the full annotation volume is returned.
+
+        Parameters
+        ----------
+        slice_plane : string, {'coronal', 'sagittal', 'transverse'}
+            Defines the axis to slice along
+        slice_location_um : float, int
+            Defines the location of the slice in micrometers (relative to bregma).
+        ax : matplotlib.axes.Axes, optional
+            a matplotlib to plot on, by default None
+
+        Returns
+        -------
+        fig, ax
+            matplotlib figure and axes objects
+        """        
         if ax is None:
             fig, ax = plt.subplots()
         slc = self.get_2d_slice(slice_plane, slice_location_um)
@@ -252,9 +273,25 @@ class VVASPAtlas:
                 remapped_slc[msk] = area_mask_num[msk]
             return remapped_slc
         
-    def get_structure_mask_from_slice(self,slc, structure):
-        structure_id = self.bg_atlas.structures[structure]["id"]
-        descendants = self.bg_atlas.get_structure_descendants(structure)
+    def get_structure_mask_from_slice(self,slc, structure_acronym):
+        """Get a mask of a structure from a 2D slice of the atlas annotation volume. Useful to get the
+        mask of a parent region is desired when the parent is not present in the annotation volume (e.g. root, MO, VIS, etc.).
+        Similar to bg_atlas.get_structure_mask() but for a 2D slice, and therefore much faster.
+
+        Parameters
+        ----------
+        slc : ndarray
+            a 2D slice of the atlas annotation volume
+        structure_acronym : string
+            the structure acronym to get the mask for
+
+        Returns
+        -------
+        ndarray
+            the mask of the structure in the slice, same size as slc
+        """
+        structure_id = self.bg_atlas.structures[structure_acronym]["id"]
+        descendants = self.bg_atlas.get_structure_descendants(structure_acronym)
         descendant_ids = [self.bg_atlas.structures[descendant]['id'] for descendant in descendants]
         descendant_ids.append(structure_id)
         mask_slice = np.zeros(slc.shape, slc.dtype)
@@ -283,6 +320,7 @@ class VVASPAtlas:
 
     @property
     def atlas_properties(self):
+        '''Primarily used to write the atlas properties to a json file'''
         return dict(name=self.name,
                     min_tree_depth=self.min_tree_depth,
                     max_tree_depth=self.max_tree_depth,
@@ -298,6 +336,7 @@ class VVASPAtlas:
         return self.structures.acronym.values
 
     def __del__(self):
+        '''A modified destructor to remove any actors from the PyVista plotter when the object is deleted.'''
         temp = list(self.visible_region_actors.keys())
         for region in temp:
             self.remove_atlas_region_mesh(region)
@@ -305,4 +344,3 @@ class VVASPAtlas:
             self.plotter.remove_actor(self.root_actor)
         if self.show_bregma:
             self.plotter.remove_actor(self.bregma_actor)
-        

@@ -7,6 +7,25 @@ INACTIVE_COLOR = '#000000'
 SPHERE_RADIUS = 50
 INIT_VEC = np.array([0, 10_000,0]) # just has to be long enough to intersect the brain surface
 
+
+MOVEMENT_VECTORS = {
+    'left':      np.array([-1, 0, 0]),
+    'right':     np.array([1, 0, 0]),
+    'dorsal':    np.array([0, 0, 1]),
+    'ventral':   np.array([0, 0, -1]),
+    'anterior':  np.array([0, 1, 0]),
+    'posterior': np.array([0, -1, 0])
+}
+
+ROTATION_VECTORS = {
+    'tilt up':       np.array([1, 0, 0]),
+    'tilt down':     np.array([-1, 0, 0]),
+    'rotate left':   np.array([0, 0, 1]),
+    'rotate right':  np.array([0, 0, -1]),
+    'spin left':     np.array([0, 1, 0]),
+    'spin right':    np.array([0, -1, 0])
+}
+
 class VVASPBaseVisualizerClass(ABC):
     """
     An absttract base class (can not be instantiated) that will be inherited
@@ -66,59 +85,19 @@ class VVASPBaseVisualizerClass(ABC):
         self._move(origin,increment = False)
                         
     def move(self, direction, multiplier):
-        match direction:
-            case 'left':
-                position_shift = np.array([-1,0,0]) * multiplier
-                self._move(position_shift)
-            case 'right':
-                position_shift = np.array([1,0,0]) * multiplier
-                self._move(position_shift)
-            case 'dorsal':
-                position_shift = np.array([0,0,1]) * multiplier
-                self._move(position_shift)
-            case 'ventral':
-                position_shift = np.array([0,0,-1]) * multiplier
-                self._move(position_shift)
-            case 'anterior':    
-                position_shift = np.array([0,1,0]) * multiplier
-                self._move(position_shift)
-            case 'posterior':  
-                position_shift = np.array([0,-1,0]) * multiplier
-                self._move(position_shift)
+        if direction in MOVEMENT_VECTORS:
+            self._move(MOVEMENT_VECTORS[direction] * multiplier)
+        elif direction in ROTATION_VECTORS:
+            self._rotate(ROTATION_VECTORS[direction] * multiplier)
+        elif direction in {'retract', 'advance'}:
+            sign = 1 if direction == 'retract' else -1
+            position_shift = sign * move3D(multiplier, *self.angles[[0, 2]])
+            self._move(position_shift.astype(int))
+        elif direction == 'home':
+            self._move(np.array([0, 0, 0]), increment=False)
+            self._rotate(np.array([-90, 0, 0]), increment=False)
 
-            case 'tilt up': 
-                angle_shift = np.array([1,0,0]) * multiplier
-                self._rotate(angle_shift)
-            case 'tilt down':
-                angle_shift = np.array([-1,0,0]) * multiplier
-                self._rotate(angle_shift)
-            case 'rotate left':
-                angle_shift = np.array([0,0,1]) * multiplier
-                self._rotate(angle_shift)
-            case 'rotate right': 
-                angle_shift = np.array([0,0,-1]) * multiplier
-                self._rotate(angle_shift)
-            case 'spin left':
-                angle_shift = np.array([0,1,0]) * multiplier
-                self._rotate(angle_shift)
-            case 'spin right':
-                angle_shift = np.array([0,-1,0]) * multiplier
-                self._rotate(angle_shift)
-            
-            case 'retract':
-                position_shift = move3D(multiplier, *self.angles[[0,2]])
-                self._move(position_shift.astype(int))
-                #self.__move(position_shift)
-            case 'advance':
-                position_shift = -move3D(multiplier, *self.angles[[0,2]])
-                self._move(position_shift.astype(int))
-                #self.__move(position_shift)
-
-            case 'home':
-                self._move(np.array([0,0,0]),increment = False)
-                self._rotate(np.array([-90,0,0]),increment = False)
-
-    def _move(self, position_shift, increment=True):     
+    def _move(self, position_shift, increment=True, **kwargs):
         if increment:
             self.origin += position_shift
         else:
@@ -130,7 +109,7 @@ class VVASPBaseVisualizerClass(ABC):
         for i,mesh in enumerate(self.meshes):
             mesh.shallow_copy(mesh.translate(position_shift))
     
-    def _rotate(self, angle_shift, increment=True):
+    def _rotate(self, angle_shift, increment=True, **kwargs):
         if increment:
             self.angles[:] += angle_shift
         else:
@@ -146,7 +125,6 @@ class VVASPBaseVisualizerClass(ABC):
             points = old_rotation_matrix.T @ (mesh.points - self.origin).T
             mesh.points = (self.rotation_matrix @ points).T + self.origin
             mesh.shallow_copy(mesh)
-
             
     def make_active(self):
         self.active = True
@@ -175,26 +153,18 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
                  starting_position=(0,0,0),
                  starting_angles=(0,0,0),
                  active=True,
-                 ray_trace_intersection=True,
-                 vvasp_atlas=None,
+                 root_intersection_mesh=None,
                  **kwargs):
         self.entry_point = None
-        if not ray_trace_intersection or vvasp_atlas is None:
-            self.ray_trace_intersection = False #if no atlas mesh is passed, we cant ray trace the insertion
-        else:
-            self.ray_trace_intersection = ray_trace_intersection
-            self.vvasp_atlas = vvasp_atlas
-            self.root_intersection_mesh = self.vvasp_atlas.meshes['root']
         self.intersection_vector = None # an imaginary line from shank origin, used for calculating the intersection with regions and the brain surface
-        self.intersection_point = None
 
         #the following mesh and actor are used to visualize the brain surface entry point
         #they are the result of a ray trace from the probe origin to the brain surface and obey unique logic
         #thus we will handle them separately from the other meshes
+        if root_intersection_mesh is not None:
+            self.root_intersection_mesh = root_intersection_mesh
         self.ball_mesh = pv.Sphere(center=np.array(starting_position).astype(np.float32), radius=SPHERE_RADIUS)
         self.ball_actor = vistaplotter.add_mesh(self.ball_mesh, color='blue')
-
-        
 
         super().__init__(vistaplotter, starting_position, starting_angles, active, **kwargs)
 
@@ -215,12 +185,12 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
         '''
         pass
 
-    def drive_probe_from_entry(self, ml_ap_entry, angles, depth):
+    def drive_probe_from_entry(self, ml_ap_entry, angles, depth, root_mesh=None):
         # move the probe to a specific entry point and depth
         # this is useful for driving the probe from a brain region entry point
         # and depth along the probe axis
-        if self.vvasp_atlas is None:
-            raise ValueError("No atlas is defined, can not drive probe from atlas entry point")
+        if root_mesh is not None:
+            self.root_intersection_mesh = root_mesh
 
         # 1) place the probe 1000um above the entry point
         above_entrypoint = np.concatenate([np.array(ml_ap_entry), np.array([1000])])
@@ -238,61 +208,59 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
         # 3) advance the probe to the desired depth
         self.move('advance', depth)
     
-    def __ray_trace_intersection(self):
+    def ray_trace_intersection(self, mesh):
         # 1. Compute the intersection point with the brain surface and update the plotter
         init_vector = (self.rotation_matrix @ INIT_VEC)
         self.intersection_vector = init_vector + self.origin
         start = self.origin.astype(np.float32)
         end = self.intersection_vector.astype(np.float32)
-        points = self.root_intersection_mesh.ray_trace(start, end)[0]
-
-        if points.shape[0] == 1:
-            self.entry_point = points[0,:].flatten()
-            self.ball_mesh.shallow_copy(pv.Sphere(center=points, radius=SPHERE_RADIUS))
-        elif points.shape[0] > 1: #pick the point with the highest z value if there are multiple
-            self.entry_point = points[np.argmax(points[:,2]),:].flatten()
-            self.ball_mesh.shallow_copy(pv.Sphere(center=self.entry_point, radius=SPHERE_RADIUS))
-        else:
-            self.entry_point = None
-            self.ball_mesh.shallow_copy(pv.Sphere(center=self.origin, radius=SPHERE_RADIUS))
+        points = mesh.ray_trace(start, end)[0]
+        return points
     
-    def __compute_region_intersections(self):
+    def compute_region_intersections(self, vvasp_atlas):
         # Compute the brain regions that the probe travels through
         # TODO: optionally take a channelmap
-        self.region_boundary_distances = [None] * len(self.shank_origins)
-        self.region_acronyms = [None] * len(self.shank_origins)
+        region_boundary_distances = [None] * len(self.shank_origins)
+        region_acronyms = [None] * len(self.shank_origins)
 
         init_vector = (self.rotation_matrix @ INIT_VEC)
         for i,shnk_origin in enumerate(self.shank_origins):
             shnk_ending = init_vector + shnk_origin
-            atlas_vector = self.vvasp_atlas.bregma_positions_to_atlas_voxels([shnk_origin, shnk_ending])
+            atlas_vector = vvasp_atlas.bregma_positions_to_atlas_voxels([shnk_origin, shnk_ending])
             atlas_bresenham_line = bresenham3D(atlas_vector[0], atlas_vector[1]) # get the voxels that the probe passes thru 
-            region_boundary_voxels, midpoint_voxels = self.vvasp_atlas.atlas_voxels_to_annotation_boundaries(atlas_bresenham_line, return_midpoints=True)
-            self.region_acronyms[i] = [self.vvasp_atlas.bg_atlas.structure_from_coords(a, as_acronym=True) for a in midpoint_voxels]
+            region_boundary_voxels, midpoint_voxels = vvasp_atlas.atlas_voxels_to_annotation_boundaries(atlas_bresenham_line, return_midpoints=True)
+            region_acronyms[i] = [vvasp_atlas.bg_atlas.structure_from_coords(a, as_acronym=True) for a in midpoint_voxels]
             # Convert midpoints and boundaries to single distance values
-            region_boundary_voxels = region_boundary_voxels * self.vvasp_atlas.bg_atlas.resolution # convert to um
+            region_boundary_voxels = region_boundary_voxels * vvasp_atlas.bg_atlas.resolution # convert to um
             zero_point = region_boundary_voxels[0]
-            self.region_boundary_distances[i] = np.linalg.norm(region_boundary_voxels - zero_point, axis=1)
+            region_boundary_distances[i] = np.linalg.norm(region_boundary_voxels - zero_point, axis=1)
+        return region_boundary_distances, region_acronyms
+
+    def set_location(self,origin,angles):
+        super().set_location(origin,angles)
+        if hasattr(self, 'root_intersection_mesh'):
+            self._update_entry_point_mesh()
+            
+    def move(self, direction, multiplier):
+        super().move(direction, multiplier)
+        if hasattr(self, 'root_intersection_mesh'):
+            self._update_entry_point_mesh()
     
-    def _move(self, position_shift, increment=True):
-        super()._move(position_shift, increment)
-        # TODO: update the probe_origins here
-        if self.ray_trace_intersection:
-                self.__ray_trace_intersection()
-                self.__compute_region_intersections()
+    def _update_entry_point_mesh(self):
+    # Move the marker of the surface intersection
+        if self.root_intersection_mesh is not None: 
+                points = self.ray_trace_intersection(self.root_intersection_mesh)
+                if points.shape[0] == 1:
+                    self.entry_point = points[0,:].flatten()
+                    self.ball_mesh.shallow_copy(pv.Sphere(center=points, radius=SPHERE_RADIUS))
+                elif points.shape[0] > 1: #pick the point with the highest z value if there are multiple
+                    self.entry_point = points[np.argmax(points[:,2]),:].flatten()
+                    self.ball_mesh.shallow_copy(pv.Sphere(center=self.entry_point, radius=SPHERE_RADIUS))
+                else:
+                    self.entry_point = None
+                    self.ball_mesh.shallow_copy(pv.Sphere(center=self.origin, radius=SPHERE_RADIUS))
         else:
             self.ball_mesh.shallow_copy(pv.Sphere(center=self.origin, radius=SPHERE_RADIUS))
-    
-    def _rotate(self, angle_shift, increment=True):
-        super()._rotate(angle_shift, increment)
-        # TODO: update the probe_origins here
-        if self.ray_trace_intersection:
-                self.__ray_trace_intersection()
-                self.__compute_region_intersections()
-        else:
-            self.ball_mesh.shallow_copy(pv.Sphere(center=self.origin, radius=SPHERE_RADIUS))
-
-
     
     @property
     def depth(self):

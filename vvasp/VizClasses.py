@@ -26,7 +26,6 @@ class CustomMeshObject(VVASPBaseVisualizerClass):
         self.scale_factor = scale_factor
         self.mesh_origin = mesh_origin
         self.mesh_rotation = mesh_rotation
-        self.ray_trace_intersection = False
         super().__init__(vistaplotter, starting_position, starting_angles, active, pyvista_mesh_args, **kwargs)
         
 
@@ -44,7 +43,6 @@ class CustomMeshObject(VVASPBaseVisualizerClass):
             #mesh = mesh.translate(rotated_translation)
             self.meshes.append(mesh)
     
-
 class Probe(AbstractBaseProbe):
     name = "Probe"
     def __init__(self,
@@ -53,15 +51,14 @@ class Probe(AbstractBaseProbe):
                  starting_position=(0,0,0),
                  starting_angles=(0,0,0),
                  active=True,
-                 ray_trace_intersection=True,
-                 vvasp_atlas=None,
+                 root_intersection_mesh=None,
                  **kwargs):
         self.name = probetype
         geometry_data = probe_geometries[probetype]
         self.probetype = probetype
         self.shank_offsets_um = geometry_data['shank_offsets_um'] # the offsets of the shanks in um
         self.shank_dims_um = geometry_data['shank_dims_um'] # the dimensions of one shank in um
-        super().__init__(vistaplotter, starting_position, starting_angles, active, ray_trace_intersection, vvasp_atlas, **kwargs)
+        super().__init__(vistaplotter, starting_position, starting_angles, active, root_intersection_mesh, **kwargs)
     
     def create_meshes(self):
         for dims, offset in zip(self.shank_dims_um, self.shank_offsets_um):
@@ -82,7 +79,18 @@ class Probe(AbstractBaseProbe):
         return rotated_offsets + self.origin
 
 class NeuropixelsChronicHolder(AbstractBaseProbe):
+
+    # Define mapping of (chassis_type, probetype) to the mesh file and name that gets logged to the experiment file
+    mesh_mapping = {
+        ('head_fixed', 'NP24'): ('np2_head_fixed.stl', 'NP2 chronic holder - head fixed'),
+        ('freely_moving', 'NP24'): ('np2_freely_moving.stl', 'NP2 chronic holder - freely moving'),
+        ('head_fixed', 'NP24a'): ('np2a_head_fixed.stl', 'NP2a chronic holder - head fixed'),
+        ('freely_moving', 'NP24a'): ('np2a_freely_moving.stl', 'NP2a chronic holder - freely moving'),
+        ('head_fixed', 'NP1'): ('np1_head_fixed.stl', 'NP1 chronic holder - head fixed'),
+        ('freely_moving', 'NP1'): ('np1_freely_moving.stl', 'NP1 chronic holder - freely moving'),
+    }   
     name = "NP2 w/ chronic holder"
+
     def __init__(self,
                  probetype,
                  chassis_type,
@@ -90,8 +98,7 @@ class NeuropixelsChronicHolder(AbstractBaseProbe):
                  starting_position=(0,0,0),
                  starting_angles=(0,0,0),
                  active=True,
-                 ray_trace_intersection=True,
-                 vvasp_atlas=None,
+                 root_intersection_mesh=None,
                  **kwargs):
         self.probetype = probetype
         geometry_data = probe_geometries[probetype.replace('4a','4')]
@@ -101,27 +108,16 @@ class NeuropixelsChronicHolder(AbstractBaseProbe):
         self.inactive_colors = []
 
         from .default_prefs import MESH_DIR
-        if chassis_type == 'head_fixed' and probetype == 'NP24':
-            self.mesh_path = MESH_DIR / 'np2_head_fixed.stl'
-            self.name = 'NP2 chronic holder - head fixed'
-        elif chassis_type == 'freely_moving' and probetype == 'NP24':
-            self.mesh_path = MESH_DIR / 'np2_freely_moving.stl'
-            self.name = 'NP2 chronic holder - freely moving'
-        elif chassis_type == 'head_fixed' and probetype == 'NP24a':
-            self.mesh_path = MESH_DIR / 'np2a_head_fixed.stl'
-            self.name = 'NP2a chronic holder - head fixed'
-        elif chassis_type == 'freely_moving' and probetype == 'NP24a':
-            self.mesh_path = MESH_DIR / 'np2a_freely_moving.stl'
-            self.name = 'NP2a chronic holder - freely moving'
-        elif chassis_type == 'head_fixed' and probetype == 'NP1':
-            self.mesh_path = MESH_DIR / 'np1_head_fixed.stl'
-            self.name = 'NP1 chronic holder - head fixed'
-        elif chassis_type == 'freely_moving' and probetype == 'NP1':
-            self.mesh_path = MESH_DIR / 'np1_freely_moving.stl'
-            self.name = 'NP1 chronic holder - freely moving'
-        else:
-            raise ValueError(f"chassis_type \"{chassis_type}\" or probetype \"{probetype}\" not recognized.") 
-        super().__init__(vistaplotter, starting_position, starting_angles, active, ray_trace_intersection, vvasp_atlas, **kwargs)
+
+        # Retrieve the values or raise an error if not found
+        try:
+            mesh_file, name = self.mesh_mapping[(chassis_type, probetype)]
+            self.mesh_path = MESH_DIR / mesh_file
+            self.name = name
+        except KeyError:
+            raise ValueError(f'Invalid chassis_type "{chassis_type}" or probetype "{probetype}".')
+
+        super().__init__(vistaplotter, starting_position, starting_angles, active, root_intersection_mesh, **kwargs)
 
     @property
     def shank_origins(self):
