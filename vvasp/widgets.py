@@ -73,6 +73,7 @@ class VVASPPlanner(QMainWindow):
 
         # add the pyvista interactor object
         self.plotter = QtInteractor(self.vistaframe, auto_update=True)
+        #self.plotter = BackgroundPlotter(True, auto_update=True)
         self.plotter.add_axes()
         self.vlayout.addWidget(self.plotter.interactor)
 

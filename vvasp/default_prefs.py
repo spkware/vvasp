@@ -16,6 +16,7 @@ ATLAS_DIR = Path().home() /'.brainglobe'
 ALL_PREF_FILES = [PREFS_FILE, MOVEMENT_KEYBINDS_FILE, STATIC_KEYBINDS_FILE, PROBE_GEOMETRIES_FILE, USER_MESH_TRANSFORMATIONS_FILE]
 
 
+# TODO: add scaling values that can be applied to the meshes
 DEFAULT_PREFERENCES = {'default_atlas':'allen_mouse_25um',
                        'atlas_transformations':
                                {'allen_mouse_25um':

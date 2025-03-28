@@ -15,7 +15,7 @@ MLAPDV_SLICE_TO_INDEX = dict(sagittal=0, coronal=1, transverse=2)
 
 class VVASPAtlas:
     ''' 
-    The VVASPAtlas wraps the brainglobe atlas object (self.bg_atlas) to provide the following funcitonality:
+    The VVASPAtlas wraps the brainglobe atlas object (self.bg_atlas) to provide the following functionality:
 
     1. Manages mapping of sub-regions to their parents (one might not necessarily need the full parcellation of an atlas).
     2. Transforms between bregma space (ml, ap, dv) and atlas space (voxels), agnostic to the coordinate system of the atlas used.
@@ -48,10 +48,8 @@ class VVASPAtlas:
         bg_atlas = BrainGlobeAtlas(self.name, check_latest=False)
         self.bg_atlas = bg_atlas
         self.atlas_path = bg_atlas.brainglobe_dir / bg_atlas.local_full_name
-        #show_atlases() # show all available atlases from BrainGlobe
 
     def load_atlas_metadata(self, mapping='Beryl', min_tree_depth=None, max_tree_depth=None):
-        #TODO: maybe use some brainglobe functionality to load data and traverse tree depths instead
         with open(self.atlas_path/'structures.json','r') as fd:
             structures = io.json.load(fd)
         with open(self.atlas_path/'metadata.json','r') as fd:
@@ -80,32 +78,37 @@ class VVASPAtlas:
         self.min_tree_depth = min_tree_depth
         self.max_tree_depth = max_tree_depth
         self.mapping = mapping
+        #### This is key information for transforming between bregma space and atlas space ####
         self.bregma_location = np.array(io.preferences['atlas_transformations'][self.name]['bregma_location'])*metadata['resolution']
+        self.rotation_angles = -np.array(io.preferences['atlas_transformations'][self.name]['angles'])
+        self.rotmat = rotation_matrix_from_degrees(*self.rotation_angles, order='xyz') # The rotation matrix to apply to the meshes to align them with the bregma space.
+        ##################
         self.metadata = metadata
 
     def initialize(self):
-        # load up meshes, rotate/translate them appropriately and compute the areas they occupy in space. 
-        # Importantly, don't render them to the plotter yet, it will just bog it down.
+        '''
+        Load up meshes, rotate/translate them appropriately and compute the areas they occupy in space. 
+        Importantly, don't render them to the plotter yet, it will just bog it down.
+        '''
         regions = list(self.structures.acronym.values)
-        axes = io.pv.Axes()
-        axes.origin = np.array([0,0,0])
         for r in regions:
             try:
-                s = io.load_structure_mesh(self.atlas_path, self.structures, r) 
+                mesh, mesh_info = io.load_structure_mesh(self.atlas_path, self.structures, r) 
             except:
                 print(f'Failed to load mesh {r}')
                 self.structures = self.structures[self.structures.acronym != r]
                 continue
-        
-            s[0].translate(-self.bregma_location, inplace=True) #make bregma the origin
-            self.rotation_angles = -np.array(io.preferences['atlas_transformations'][self.name]['angles'])
-            s[0].rotate_x(self.rotation_angles[0], point=axes.origin, inplace=True)
-            s[0].rotate_y(self.rotation_angles[1], point=axes.origin, inplace=True) # rotate the meshes so that [x,y,z] => [ML,AP,DV]
-            s[0].rotate_z(self.rotation_angles[2], point=axes.origin, inplace=True) # rotate the meshes so that [x,y,z] => [ML,AP,DV]
-            self.meshes[r] = s[0]
-            self.meshcols[r] = s[1]['rgb_triplet']
+            
+            # apply translation and rotation to the meshes
+            mesh.translate(-self.bregma_location, inplace=True)
+            mesh.points = np.dot(mesh.points, self.rotmat.T)
+            # TODO: also apply scaling in ml, ap, dv here if needed (not currently in the atlas transformations)
+
+            self.meshes[r] = mesh
+            self.meshcols[r] = mesh_info['rgb_triplet']
         assert len(self.meshes) == len(self.structures)
 
+        # handle root and bregma meshes separately
         if self.show_root and self.plotter is not None:
             self.root_actor = self.plotter.add_mesh(self.meshes['root'],
                                   color=self.meshcols['root'],
@@ -114,8 +117,6 @@ class VVASPAtlas:
                                   name='root')
         if self.show_bregma and self.plotter is not None:
             self.bregma_actor = self.plotter.add_mesh(io.pv.Sphere(radius=100, center=(0,0,0)))
-
-        self.rotmat = rotation_matrix_from_degrees(*self.rotation_angles, order='xyz') # used to get the annotations
 
     def bregma_positions_to_structures(self, positions_um):
         voxels = self.bregma_positions_to_atlas_voxels(positions_um)
@@ -126,13 +127,13 @@ class VVASPAtlas:
         mlapdv_positions_um = np.dot(mlapdv_positions_um, self.rotmat)
         mlapdv_positions_um = mlapdv_positions_um + self.bregma_location
         voxels = np.array(np.round(mlapdv_positions_um / self.bg_atlas.metadata['resolution'])).astype(int)
-        #voxels = np.clip(voxels, 0, np.array(self.bg_atlas.annotation.shape)-1)
+        # TODO: handle case where outside of volume and either clip (with warning) or raise error?
         return voxels
     
     def atlas_voxels_to_bregma_positions(self, voxels):
         positions_um = np.array(voxels) * self.bg_atlas.metadata['resolution']
         positions_um = positions_um - self.bregma_location
-        positions_um = np.dot(positions_um, np.linalg.inv(self.rotmat))
+        positions_um = np.dot(positions_um, self.rotmat.T)
         return positions_um
 
     def atlas_voxels_to_annotation_boundaries(self,bresenham_line, return_midpoints=False):
@@ -150,7 +151,6 @@ class VVASPAtlas:
             if region_boundaries.shape[0] == 0:
                 midpoints = np.empty((0,3))
             else:
-                #temp = np.vstack([bresenham_line[0], region_boundaries, bresenham_line[-1]])
                 midpoints = ((region_boundaries[:-1] + region_boundaries[1:]) / 2).astype(int)
             return region_boundaries, midpoints
 
