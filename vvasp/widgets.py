@@ -1,7 +1,7 @@
 from .utils import *
-from . import VizClasses
+from . import viz_objects
 from . import io
-from . import atlas_utils 
+from . import atlas 
 
 # todo: clean-up QT imports
 from PyQt5.QtWidgets import (QWidget,
@@ -81,7 +81,7 @@ class VVASPPlanner(QMainWindow):
         
         self.vistaframe.setLayout(self.vlayout)
         self.setCentralWidget(self.vistaframe)
-        self.vvasp_atlas = atlas_utils.VVASPAtlas(self.plotter, atlas_name=atlas_name, mapping=mapping, min_tree_depth=min_tree_depth, max_tree_depth=max_tree_depth)
+        self.vvasp_atlas = atlas.VVASPAtlas(self.plotter, atlas_name=atlas_name, mapping=mapping, min_tree_depth=min_tree_depth, max_tree_depth=max_tree_depth)
 
         self.plotter.track_click_position(
             callback=lambda x: print(x,flush=True),
@@ -127,7 +127,7 @@ class VVASPPlanner(QMainWindow):
         self.fileMenu.addAction('Quit',self.close)
 
         self.probeMenu = self.menubar.addMenu('Objects')
-        for object_name, class_to_call in VizClasses.availible_viz_classes_for_gui.items():
+        for object_name, class_to_call in viz_objects.availible_viz_classes_for_gui.items():
             self.probeMenu.addAction(f'Add Object: {object_name}', lambda object_name=object_name, object_class=class_to_call: self.new_object(object_name, object_class))
         self.probeMenu.addAction('Remove Active Object',self.delete_object)
         self.probeMenu.addAction('Next Object',self.next_object)
@@ -336,7 +336,7 @@ class VVASPPlanner(QMainWindow):
         if experiment_data is None:
             return
         print(experiment_data['atlas'], flush=True)
-        self.vvasp_atlas = atlas_utils.VVASPAtlas(self.plotter,
+        self.vvasp_atlas = atlas.VVASPAtlas(self.plotter,
                                             atlas_name=experiment_data['atlas']['name'],
                                             mapping=experiment_data['atlas'].get('mapping',None),
                                             min_tree_depth=experiment_data['atlas'].get('min_tree_depth',None),
@@ -354,7 +354,7 @@ class VVASPPlanner(QMainWindow):
         for i,p in enumerate(experiment_data['probes']):
             angles = [p['angles']['elevation'], p['angles']['spin'], p['angles']['azimuth']]
             origin = [p['tip']['ML'], p['tip']['AP'], p['tip']['DV']]
-            cls = VizClasses.availible_viz_classes_for_gui[p['probetype']]
+            cls = viz_objects.availible_viz_classes_for_gui[p['probetype']]
             if not 'info' in p.keys():
                 p['info'] = f'probe{i}'
             self.objects.append(cls(self.plotter,
@@ -377,7 +377,7 @@ class VVASPPlanner(QMainWindow):
             self._disconnect_shortcuts()
         self.objects = []
         #del self.vvasp_atlas
-        self.vvasp_atlas = atlas_utils.VVASPAtlas(self.plotter, mapping='Beryl', min_tree_depth=None, max_tree_depth=None) #TODO: allow the user to update tree depth
+        self.vvasp_atlas = atlas.VVASPAtlas(self.plotter, mapping='Beryl', min_tree_depth=None, max_tree_depth=None) #TODO: allow the user to update tree depth
         self.active_object = None
         self.filename = None
         self.bottom_horizontal_widgets.removeWidget(self.atlas_view_box)
@@ -412,7 +412,7 @@ class VVASPPlanner(QMainWindow):
      
     def contextMenuEvent(self, e):
         context = QMenu(self)
-        for object_name, class_to_call in VizClasses.availible_viz_classes_for_gui.items():
+        for object_name, class_to_call in viz_objects.availible_viz_classes_for_gui.items():
             action = QAction(f'Add object: {object_name}', self)
             func = partial(self.new_object, object_name, class_to_call)
             action.triggered.connect(func)
