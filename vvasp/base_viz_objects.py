@@ -59,7 +59,6 @@ class VVASPBaseVisualizerClass(ABC):
         self.spawn_actors()
         self.set_location(np.array(starting_position),np.array(starting_angles))
         
-    
     @property
     @abstractmethod
     def name():
@@ -229,9 +228,9 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
             atlas_vector = vvasp_atlas.bregma_positions_to_atlas_voxels([shnk_origin, shnk_ending])
             atlas_bresenham_line = bresenham3D(atlas_vector[0], atlas_vector[1]) # get the voxels that the probe passes thru 
             region_boundary_voxels, midpoint_voxels = vvasp_atlas.atlas_voxels_to_annotation_boundaries(atlas_bresenham_line, return_midpoints=True)
-            region_acronyms[i] = [vvasp_atlas.bg_atlas.structure_from_coords(a, as_acronym=True) for a in midpoint_voxels]
+            region_acronyms[i] = [vvasp_atlas.structure_from_coords(a, as_acronym=True) for a in midpoint_voxels]
             # Convert midpoints and boundaries to single distance values
-            region_boundary_voxels = region_boundary_voxels * vvasp_atlas.bg_atlas.resolution # convert to um
+            region_boundary_voxels = region_boundary_voxels * vvasp_atlas.resolution # convert to um
             zero_point = region_boundary_voxels[0]
             region_boundary_distances[i] = np.linalg.norm(region_boundary_voxels - zero_point, axis=1)
         return region_boundary_distances, region_acronyms

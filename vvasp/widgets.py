@@ -275,7 +275,7 @@ class VVASPPlanner(QMainWindow):
         self.atlas_list_widget.setMaximumWidth(200)
 
         # Store region names
-        self.all_region_names = list(self.vvasp_atlas.all_atlas_regions)
+        self.all_region_names = list(self.vvasp_atlas.structures_list_remapped.acronym)
 
         # Store check states
         self.checked_states = {name: False for name in self.all_region_names}
@@ -569,7 +569,7 @@ class ProbePathWindow(QWidget):
                 if ac == 'Outside atlas':
                     color = 'gray'
                 else:
-                    color = self.main_window.vvasp_atlas.colormap[ac]
+                    color = self.main_window.vvasp_atlas.meshcolor(ac)
                 bar = pg.BarGraphItem(x=i, width=.2, y0=y0 , y1=y1, brush=color)
                 self.plot.addItem(bar)
         # add the text of the regions to the plot
@@ -580,7 +580,7 @@ class ProbePathWindow(QWidget):
                 if ac == 'Outside atlas':
                     color = 'gray'
                 else:
-                    color = self.main_window.vvasp_atlas.colormap[ac]
+                    color = self.main_window.vvasp_atlas.meshcolor(ac)
                 text = pg.TextItem(ac, color=color)
                 text.setPos(i+.1, mp)  # Position to side of bar
                 self.plot.addItem(text)

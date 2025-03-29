@@ -38,47 +38,47 @@ class VVASPAtlas(BrainGlobeAtlas):
                  mapping='Beryl',
                  min_tree_depth=None,
                  max_tree_depth=None,
-                 transform_to_stereotaxic_space=True):
-        vistaplotter = vistaplotter or io.pv.Plotter()
+                 transform_to_stereotaxic_space=True): # TODO: add option for no transform
+        vistaplotter = vistaplotter or io.pv.Plotter() # TODO: if plotter is None, maybe don't create one or load meshes
         atlas_name = atlas_name or io.preferences['default_atlas']
         super().__init__(atlas_name=atlas_name, check_latest=False)
 
         self.name = atlas_name
         self.plotter = vistaplotter
-        self.visible_region_actors = {}
         self.meshes = {}
-        self.meshcols = {}
+        self.visible_region_actors = {}
         self.show_root = show_root
         self.show_bregma = show_bregma
-
-        self.fetch_atlas_metadata(mapping, min_tree_depth, max_tree_depth)
+        self.structures_list = pd.DataFrame(self.structures_list) # make BrainGlobeAtlas attribute a dataframe for easier indexing
+        self.structures_list['mesh_is_loaded'] = False # track which meshes we want to load
+        self.select_region_meshes_to_load(mapping, min_tree_depth, max_tree_depth)
         self.initialize()
 
-    def fetch_atlas_metadata(self, mapping='Beryl', min_tree_depth=None, max_tree_depth=None):
-        with open(self.brainglobe_dir / self.local_full_name / 'structures.json', 'r') as fd:
-            structures = io.json.load(fd)
-
-        temp = pd.DataFrame(structures)
-        self.colormap = temp.set_index('acronym')['rgb_triplet'].to_dict()
-        self.colormap['Outside atlas'] = [0, 0, 0]
-
-        tmp_root = next(s for s in structures if s['acronym'] == 'root')
-
+    def select_region_meshes_to_load(self, mapping='Beryl', min_tree_depth=None, max_tree_depth=None):
         if mapping:
             mapping_file = Path(__file__).parent.parent / 'assets' / f'{mapping}.csv'
             mapping_structures = pd.read_csv(mapping_file)['acronym'].values
-            structures = [s for s in structures if s['acronym'] in mapping_structures]
             self.mapping_structures = mapping_structures
+            mesh_inds_to_show = self.structures_list.acronym.isin(mapping_structures)
         elif min_tree_depth is not None and max_tree_depth is not None:
-            structures = [s for s in structures if min_tree_depth <= len(s['structure_id_path']) <= max_tree_depth]
+            # get the inds within the desired tree depths
+            mesh_inds_to_show = self.structures_list[self.structures_list['structure_id_path'].apply(lambda x: min_tree_depth <= len(x) <= max_tree_depth)].index
+            temp = np.zeros(len(self.structures_list)).astype(bool)
+            temp[mesh_inds_to_show] = 1
+            mesh_inds_to_show = temp
         else:
             raise ValueError('Specify either min_tree_depth/max_tree_depth or mapping, not both.')
 
-        if min_tree_depth is None or min_tree_depth > 1:
-            structures.append(tmp_root)
-
-        self.structures = pd.DataFrame(structures)
+        self.structures_list['mesh_is_loaded'] = mesh_inds_to_show 
+        self.structures_list.loc[self.structures_list.acronym == 'root','mesh_is_loaded'] = 1 # always load the root mesh
         self._initialize_transformations()
+
+    @property
+    def structures_list_remapped(self):
+        return self.structures_list[self.structures_list.mesh_is_loaded == 1] 
+    
+    def meshcolor(self,acronym):
+        return self.structures[acronym]['rgb_triplet']
 
     def _initialize_transformations(self):
         prefs = io.preferences['atlas_transformations'][self.name]
@@ -88,33 +88,25 @@ class VVASPAtlas(BrainGlobeAtlas):
 
     def initialize(self):
         ''' Load meshes, rotate, and translate them appropriately '''
-        regions = list(self.structures.acronym.values)
-        for r in regions:
-            try:
-                mesh, mesh_info = io.load_structure_mesh(self.brainglobe_dir / self.local_full_name, self.structures, r)
-            except:
-                print(f'Failed to load mesh {r}')
-                self.structures = self.structures[self.structures.acronym != r]
-                continue
-            
+        for region_acronym in self.structures_list_remapped.acronym:
+            mesh = pv.read(self.meshfile_from_structure(region_acronym))
             mesh.translate(-self.bregma_location, inplace=True)
             mesh.points = np.dot(mesh.points, self.rotmat.T)
-            self.meshes[r] = mesh
-            self.meshcols[r] = mesh_info['rgb_triplet']
+            self.meshes[region_acronym] = mesh
         
-        # Handle root and bregma meshes
+        # Handle showing root and bregma meshes
         if self.show_root and self.plotter is not None:
             self.root_actor = self.plotter.add_mesh(self.meshes['root'],
-                                  color=self.meshcols['root'],
+                                  color=self.meshcolor('root'),
                                   opacity=0.08,
                                   silhouette=False,
                                   name='root')
         if self.show_bregma and self.plotter is not None:
             self.bregma_actor = self.plotter.add_mesh(io.pv.Sphere(radius=100, center=(0, 0, 0)))
             
-    def bregma_positions_to_structures(self, positions_um):
+    def bregma_positions_to_structures(self, positions_um, hierarchy_lev=None):
         voxels = self.bregma_positions_to_atlas_voxels(positions_um)
-        region_acronyms = [self.structure_from_coords(a, as_acronym=True) for a in voxels]
+        region_acronyms = [self.structure_from_coords(a, as_acronym=True, hierarchy_lev=hierarchy_lev) for a in voxels]
         return region_acronyms
 
     def bregma_positions_to_atlas_voxels(self, mlapdv_positions_um):
@@ -172,7 +164,7 @@ class VVASPAtlas(BrainGlobeAtlas):
             raise ValueError(f'Invalid side {side}')
 
         actor = self.plotter.add_mesh(m,
-                              color=self.meshcols[region_acronym],
+                              color=self.meshcolor(region_acronym),
                               **pv_kwargs)
         self.visible_region_actors.update({region_acronym: actor})
     
