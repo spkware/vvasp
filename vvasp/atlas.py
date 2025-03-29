@@ -38,13 +38,14 @@ class VVASPAtlas(BrainGlobeAtlas):
                  mapping='Beryl',
                  min_tree_depth=None,
                  max_tree_depth=None,
-                 transform_to_stereotaxic_space=True): # TODO: add option for no transform
+                 transform_to_stereotaxic_space=True):
         vistaplotter = vistaplotter or io.pv.Plotter() # TODO: if plotter is None, maybe don't create one or load meshes
         atlas_name = atlas_name or io.preferences['default_atlas']
         super().__init__(atlas_name=atlas_name, check_latest=False)
 
         self.name = atlas_name
         self.plotter = vistaplotter
+        self.transformed = transform_to_stereotaxic_space
         self.meshes = {}
         self.visible_region_actors = {}
         self.show_root = show_root
@@ -90,8 +91,9 @@ class VVASPAtlas(BrainGlobeAtlas):
         ''' Load meshes, rotate, and translate them appropriately '''
         for region_acronym in self.structures_list_remapped.acronym:
             mesh = pv.read(self.meshfile_from_structure(region_acronym))
-            mesh.translate(-self.bregma_location, inplace=True)
-            mesh.points = np.dot(mesh.points, self.rotmat.T)
+            if self.transformed:
+                mesh.translate(-self.bregma_location, inplace=True)
+                mesh.points = np.dot(mesh.points, self.rotmat.T)
             self.meshes[region_acronym] = mesh
         
         # Handle showing root and bregma meshes
