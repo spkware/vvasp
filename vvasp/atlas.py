@@ -1,8 +1,10 @@
-from . import io
-from tqdm import tqdm
-from .utils import *
-from functools import cached_property
 import matplotlib.pyplot as plt
+from tqdm import tqdm
+from functools import cached_property
+from brainglobe_atlasapi import BrainGlobeAtlas
+
+from . import io
+from .utils import *
 
 def list_availible_atlases():
     return [x.name for x in io.ATLAS_DIR.glob('*')]
@@ -13,24 +15,34 @@ SLICE_TO_BG_SPACE = dict(coronal='frontal',
 
 MLAPDV_SLICE_TO_INDEX = dict(sagittal=0, coronal=1, transverse=2)
 
-class VVASPAtlas:
-    ''' 
-    The VVASPAtlas wraps the brainglobe atlas object (self.bg_atlas) to provide the following functionality:
+PV_KWARG_DEFAULTS = dict(opacity=.7,
+                         render=False,
+                         silhouette=False) 
 
-    1. Manages mapping of sub-regions to their parents (one might not necessarily need the full parcellation of an atlas).
-    2. Transforms between bregma space (ml, ap, dv) and atlas space (voxels), agnostic to the coordinate system of the atlas used.
-    3. Compute the path of a probe or other object through the atlas and get the regions it traverses.
-    4. Provides a simple interface to plot regions of the atlas in 3D using pyvista, the meshes are all automatically transformed from the atlas space to the bregma anatomical space.
+class VVASPAtlas(BrainGlobeAtlas):
+    ''' 
+    The VVASPAtlas extends the BrainGlobeAtlas object to provide additional functionality:
+
+    1. Manages mapping of sub-regions to their parents.
+    2. Transforms between bregma space (ml, ap, dv) and atlas space (voxels).
+    3. Computes the path of a probe or other object through the atlas.
+    4. Provides an interface to plot regions in 3D using pyvista.
     5. Provides an interface to plot 2D slices of the atlas annotation volume.
     '''
-    def __init__(self, vistaplotter=None, atlas_name=None, show_root=True, show_bregma=True, mapping='Beryl', min_tree_depth=None, max_tree_depth=None):
-        if mapping is None:
-            min_tree_depth = 1
-            max_tree_depth = 10
-        if vistaplotter is None:
-            vistaplotter = io.pv.Plotter()
-        if atlas_name is None:
-            atlas_name = io.preferences['default_atlas']
+    
+    def __init__(self, 
+                 vistaplotter=None,
+                 atlas_name=None,
+                 show_root=True,
+                 show_bregma=True,
+                 mapping='Beryl',
+                 min_tree_depth=None,
+                 max_tree_depth=None,
+                 transform_to_stereotaxic_space=True):
+        vistaplotter = vistaplotter or io.pv.Plotter()
+        atlas_name = atlas_name or io.preferences['default_atlas']
+        super().__init__(atlas_name=atlas_name, check_latest=False)
+
         self.name = atlas_name
         self.plotter = vistaplotter
         self.visible_region_actors = {}
@@ -38,77 +50,59 @@ class VVASPAtlas:
         self.meshcols = {}
         self.show_root = show_root
         self.show_bregma = show_bregma
-        self.fetch_atlas(atlas_name)
-        self.load_atlas_metadata(mapping, min_tree_depth, max_tree_depth)
-        self.initialize()
-        
-    def fetch_atlas(self, force_redownload=False):
-        from brainglobe_atlasapi import BrainGlobeAtlas, show_atlases
-        #download the atlas if not present
-        bg_atlas = BrainGlobeAtlas(self.name, check_latest=False)
-        self.bg_atlas = bg_atlas
-        self.atlas_path = bg_atlas.brainglobe_dir / bg_atlas.local_full_name
 
-    def load_atlas_metadata(self, mapping='Beryl', min_tree_depth=None, max_tree_depth=None):
-        with open(self.atlas_path/'structures.json','r') as fd:
+        self.fetch_atlas_metadata(mapping, min_tree_depth, max_tree_depth)
+        self.initialize()
+
+    def fetch_atlas_metadata(self, mapping='Beryl', min_tree_depth=None, max_tree_depth=None):
+        with open(self.brainglobe_dir / self.local_full_name / 'structures.json', 'r') as fd:
             structures = io.json.load(fd)
-        with open(self.atlas_path/'metadata.json','r') as fd:
-            metadata = io.json.load(fd)
+
         temp = pd.DataFrame(structures)
-        self.colormap = temp[['acronym','rgb_triplet']].set_index('acronym').to_dict()['rgb_triplet']
-        self.colormap['Outside atlas'] = [0,0,0] # manually add this
-        tmp_root = [s for s in structures if s['acronym'] == 'root'][0]
-        if min_tree_depth is not None and max_tree_depth is not None and mapping is None:
-            structures = [s for s in structures if len(s['structure_id_path']) <= max_tree_depth] #restrict to regions at or below max tree depth
-            structures = [s for s in structures if len(s['structure_id_path']) >= min_tree_depth] #restrict to regions at or below max tree depth
-        elif mapping is not None and min_tree_depth is None and max_tree_depth is None:
+        self.colormap = temp.set_index('acronym')['rgb_triplet'].to_dict()
+        self.colormap['Outside atlas'] = [0, 0, 0]
+
+        tmp_root = next(s for s in structures if s['acronym'] == 'root')
+
+        if mapping:
             mapping_file = Path(__file__).parent.parent / 'assets' / f'{mapping}.csv'
             mapping_structures = pd.read_csv(mapping_file)['acronym'].values
             structures = [s for s in structures if s['acronym'] in mapping_structures]
             self.mapping_structures = mapping_structures
+        elif min_tree_depth is not None and max_tree_depth is not None:
+            structures = [s for s in structures if min_tree_depth <= len(s['structure_id_path']) <= max_tree_depth]
         else:
-            raise ValueError('Must specify either min_tree_depth and max_tree_depth or mapping, not both.')
-        if min_tree_depth is None:
-            structures.append(tmp_root) #add root back in
-        elif min_tree_depth > 1:
-            structures.append(tmp_root) #add root back in (it can get removed if min_tree_depth > 1)
-        # TODO: don't put root back in?
-        structures = pd.DataFrame(structures)
-        self.structures = pd.DataFrame(structures)    
-        self.min_tree_depth = min_tree_depth
-        self.max_tree_depth = max_tree_depth
-        self.mapping = mapping
-        #### This is key information for transforming between bregma space and atlas space ####
-        self.bregma_location = np.array(io.preferences['atlas_transformations'][self.name]['bregma_location'])*metadata['resolution']
-        self.rotation_angles = -np.array(io.preferences['atlas_transformations'][self.name]['angles'])
-        self.rotmat = rotation_matrix_from_degrees(*self.rotation_angles, order='xyz') # The rotation matrix to apply to the meshes to align them with the bregma space.
-        ##################
-        self.metadata = metadata
+            raise ValueError('Specify either min_tree_depth/max_tree_depth or mapping, not both.')
+
+        if min_tree_depth is None or min_tree_depth > 1:
+            structures.append(tmp_root)
+
+        self.structures = pd.DataFrame(structures)
+        self._initialize_transformations()
+
+    def _initialize_transformations(self):
+        prefs = io.preferences['atlas_transformations'][self.name]
+        self.bregma_location = np.array(prefs['bregma_location']) * self.metadata['resolution']
+        self.rotation_angles = -np.array(prefs['angles'])
+        self.rotmat = rotation_matrix_from_degrees(*self.rotation_angles, order='xyz')
 
     def initialize(self):
-        '''
-        Load up meshes, rotate/translate them appropriately and compute the areas they occupy in space. 
-        Importantly, don't render them to the plotter yet, it will just bog it down.
-        '''
+        ''' Load meshes, rotate, and translate them appropriately '''
         regions = list(self.structures.acronym.values)
         for r in regions:
             try:
-                mesh, mesh_info = io.load_structure_mesh(self.atlas_path, self.structures, r) 
+                mesh, mesh_info = io.load_structure_mesh(self.brainglobe_dir / self.local_full_name, self.structures, r)
             except:
                 print(f'Failed to load mesh {r}')
                 self.structures = self.structures[self.structures.acronym != r]
                 continue
             
-            # apply translation and rotation to the meshes
             mesh.translate(-self.bregma_location, inplace=True)
             mesh.points = np.dot(mesh.points, self.rotmat.T)
-            # TODO: also apply scaling in ml, ap, dv here if needed (not currently in the atlas transformations)
-
             self.meshes[r] = mesh
             self.meshcols[r] = mesh_info['rgb_triplet']
-        assert len(self.meshes) == len(self.structures)
-
-        # handle root and bregma meshes separately
+        
+        # Handle root and bregma meshes
         if self.show_root and self.plotter is not None:
             self.root_actor = self.plotter.add_mesh(self.meshes['root'],
                                   color=self.meshcols['root'],
@@ -116,22 +110,22 @@ class VVASPAtlas:
                                   silhouette=False,
                                   name='root')
         if self.show_bregma and self.plotter is not None:
-            self.bregma_actor = self.plotter.add_mesh(io.pv.Sphere(radius=100, center=(0,0,0)))
-
+            self.bregma_actor = self.plotter.add_mesh(io.pv.Sphere(radius=100, center=(0, 0, 0)))
+            
     def bregma_positions_to_structures(self, positions_um):
         voxels = self.bregma_positions_to_atlas_voxels(positions_um)
-        region_acronyms = [self.bg_atlas.structure_from_coords(a, as_acronym=True) for a in voxels]
+        region_acronyms = [self.structure_from_coords(a, as_acronym=True) for a in voxels]
         return region_acronyms
 
     def bregma_positions_to_atlas_voxels(self, mlapdv_positions_um):
         mlapdv_positions_um = np.dot(mlapdv_positions_um, self.rotmat)
         mlapdv_positions_um = mlapdv_positions_um + self.bregma_location
-        voxels = np.array(np.round(mlapdv_positions_um / self.bg_atlas.metadata['resolution'])).astype(int)
+        voxels = np.array(np.round(mlapdv_positions_um / self.metadata['resolution'])).astype(int)
         # TODO: handle case where outside of volume and either clip (with warning) or raise error?
         return voxels
     
     def atlas_voxels_to_bregma_positions(self, voxels):
-        positions_um = np.array(voxels) * self.bg_atlas.metadata['resolution']
+        positions_um = np.array(voxels) * self.metadata['resolution']
         positions_um = positions_um - self.bregma_location
         positions_um = np.dot(positions_um, self.rotmat.T)
         return positions_um
@@ -141,8 +135,8 @@ class VVASPAtlas:
         Uses a bresenham line to compute the atlas voxels where the line intersects the boundaries between regions.
         If return_midpoints is True, also return the midpoints between the region boundaries.
         '''
-        bresenham_line = np.clip(bresenham_line, 0, np.array(self.bg_atlas.annotation.shape) - 1)
-        region_ids = self.bg_atlas.annotation[tuple(bresenham_line.T)]
+        bresenham_line = np.clip(bresenham_line, 0, np.array(self.annotation.shape) - 1)
+        region_ids = self.annotation[tuple(bresenham_line.T)]
         region_boundaries = bresenham_line[np.where(np.diff(region_ids) != 0)]
         region_boundaries = np.vstack([bresenham_line[0], region_boundaries, bresenham_line[-1]])
         if not return_midpoints:
@@ -155,15 +149,11 @@ class VVASPAtlas:
             return region_boundaries, midpoints
 
     def show_all_regions(self, side='both', add_root=False, **pv_kwargs):
-        for r in self.structures.acronym:
-            if r == 'root' and not add_root:
-                continue
-            self.add_atlas_region_mesh(r, side=side, force_replot=False, **pv_kwargs)
+        for region in self.structures.acronym:
+            if region != 'root' or add_root:
+                self.add_atlas_region_mesh(region, side=side, **pv_kwargs)
 
     def add_atlas_region_mesh(self, region_acronym, side='both', force_replot=False, **pv_kwargs):
-        PV_KWARG_DEFAULTS = dict(opacity=.7,
-                                 render=False,
-                                 silhouette=False) 
         # update user kwargs with defaults if they dont exist
         for k in PV_KWARG_DEFAULTS.keys():
             if k not in pv_kwargs.keys():
@@ -187,9 +177,8 @@ class VVASPAtlas:
         self.visible_region_actors.update({region_acronym: actor})
     
     def remove_atlas_region_mesh(self, region_acronym):
-        if region_acronym in self.visible_region_actors.keys():
-            self.plotter.remove_actor(self.visible_region_actors[region_acronym])
-            self.visible_region_actors.pop(region_acronym)
+        if actor := self.visible_region_actors.pop(region_acronym, None):
+            self.plotter.remove_actor(actor)
         else:
             print(f'No region {region_acronym} to remove')
     
@@ -230,7 +219,7 @@ class VVASPAtlas:
         unique_ids = np.unique(slc)
         unique_ids = unique_ids[unique_ids != 0] # need to drop the 0 value (background)
         for id in unique_ids:
-            color = self.bg_atlas.structures[id]['rgb_triplet']
+            color = self.structures[id]['rgb_triplet']
             colored_slice[slc == id] = color
         ax.imshow(colored_slice)
         return fig, ax
@@ -245,7 +234,7 @@ class VVASPAtlas:
         assert slice_plane in SLICE_TO_BG_SPACE.keys(), f"Invalid slice plane, must be one of {SLICE_TO_BG_SPACE.keys()}"
 
         # use brainglobe space definition to ensure consistency across atlases, this finds the proper axis to slice along
-        slicing_index = self.bg_atlas.space.sections.index(SLICE_TO_BG_SPACE[slice_plane]) 
+        slicing_index = self.space.sections.index(SLICE_TO_BG_SPACE[slice_plane]) 
 
         # Convert the slice location to atlas voxel coordinates (transform from bregma space to atlas space)
         slice_location_um_array = np.zeros(3)
@@ -260,7 +249,7 @@ class VVASPAtlas:
         }
 
         # Slice the annotation based on the selected plane and location
-        slc = self.bg_atlas.annotation[slice_axes[slicing_index]]
+        slc = self.annotation[slice_axes[slicing_index]]
         if return_full_annotation:
             return slc
         else:
@@ -290,9 +279,9 @@ class VVASPAtlas:
         ndarray
             the mask of the structure in the slice, same size as slc
         """
-        structure_id = self.bg_atlas.structures[structure_acronym]["id"]
-        descendants = self.bg_atlas.get_structure_descendants(structure_acronym)
-        descendant_ids = [self.bg_atlas.structures[descendant]['id'] for descendant in descendants]
+        structure_id = self.structures[structure_acronym]["id"]
+        descendants = self.get_structure_descendants(structure_acronym)
+        descendant_ids = [self.structures[descendant]['id'] for descendant in descendants]
         descendant_ids.append(structure_id)
         mask_slice = np.zeros(slc.shape, slc.dtype)
         mask_slice[np.isin(slc, descendant_ids)] = structure_id
@@ -311,9 +300,9 @@ class VVASPAtlas:
         '''
         # TODO: speed this function up
         print('Computing and caching remapped annotation. This may take some time.')
-        res = np.empty_like(self.bg_atlas.annotation)
+        res = np.empty_like(self.annotation)
         for area_acronym in tqdm(self.mapping_structures):
-            area_mask_num = self.bg_atlas.get_structure_mask(area_acronym)
+            area_mask_num = self.get_structure_mask(area_acronym)
             msk = area_mask_num != 0
             res[msk] = area_mask_num[msk]
         return res
