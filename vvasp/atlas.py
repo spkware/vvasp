@@ -37,9 +37,10 @@ class VVASPAtlas(BrainGlobeAtlas):
                  mapping='Beryl',
                  min_tree_depth=None,
                  max_tree_depth=None,
-                 transform_to_stereotaxic_space=True):
+                 transform_to_stereotaxic_space=True,
+                 check_latest_atlas=False):
         atlas_name = atlas_name or io.preferences['default_atlas']
-        super().__init__(atlas_name=atlas_name, check_latest=True)
+        super().__init__(atlas_name=atlas_name, check_latest=check_latest_atlas)
 
         self.name = atlas_name
         self.plotter = vistaplotter
@@ -79,6 +80,7 @@ class VVASPAtlas(BrainGlobeAtlas):
         self.bregma_location = np.array(prefs['bregma_location']) * self.metadata['resolution']
         self.rotation_angles = -np.array(prefs['angles'])
         self.rotation_matrix = rotation_matrix_from_degrees(*self.rotation_angles, order='xyz')
+        self.scaling = prefs.get('scaling',[1.,1.,1.]) # no scaling if it doesn't exist
 
     def _load_meshes(self):
         ''' Load meshes, rotate, and translate them appropriately '''
@@ -91,6 +93,7 @@ class VVASPAtlas(BrainGlobeAtlas):
             if self.transformed:
                 mesh.translate(-self.bregma_location, inplace=True)
                 mesh.points = np.dot(mesh.points, self.rotation_matrix.T)
+                mesh.scale(self.scaling, inplace=True)
             self.meshes[region_acronym] = mesh
     
     def _show_root_and_bregma_actors(self):

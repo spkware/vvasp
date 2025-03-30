@@ -16,15 +16,16 @@ ATLAS_DIR = Path().home() /'.brainglobe'
 ALL_PREF_FILES = [PREFS_FILE, MOVEMENT_KEYBINDS_FILE, STATIC_KEYBINDS_FILE, PROBE_GEOMETRIES_FILE, USER_MESH_TRANSFORMATIONS_FILE]
 
 
-# TODO: add scaling values that can be applied to the meshes
 DEFAULT_PREFERENCES = {'default_atlas':'allen_mouse_25um',
                        'atlas_transformations':
                                {'allen_mouse_25um':
                                        {'bregma_location':[216, 18,228],
-                                        'angles':[90, -5, 90]}, # -5 corrects for small tilt in the atlas
+                                        'angles':[90, -5, 90], # -5 corrects for small tilt in the atlas
+                                        'scaling':[1.,1.,1.]}, # [ML (x), AP (y), DV (z)]
                                 'whs_sd_rat_39um':
                                         {'bregma_location':[371, 72, 266],
-                                         'angles':[90, -4, 90]}, # -4 corrects for a small tilt in the atlas
+                                         'angles':[90, -4, 90], # -4 corrects for a small tilt in the atlas
+                                         'scaling': [1.,1.,1.]}, # [ML (x), AP (y), DV (z)]
                                },
                        'default_save_dir':str(EXPERIMENT_DIR),
                        'user_mesh_dir':str(USER_MESH_DIR),
