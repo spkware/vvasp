@@ -23,13 +23,12 @@ class VVASPAtlas(BrainGlobeAtlas):
     ''' 
     The VVASPAtlas extends the BrainGlobeAtlas object to provide additional functionality:
 
-    1. Manages mapping of sub-regions to their parents.
+    1. Manages mapping of sub-regions to their parents (usefull when full atlas parcellation isn't needed).
     2. Transforms between bregma space (ml, ap, dv) and atlas space (voxels).
     3. Computes the path of a probe or other object through the atlas.
     4. Provides an interface to plot regions in 3D using pyvista.
     5. Provides an interface to plot 2D slices of the atlas annotation volume.
     '''
-    
     def __init__(self, 
                  vistaplotter=None,
                  atlas_name=None,
@@ -39,9 +38,8 @@ class VVASPAtlas(BrainGlobeAtlas):
                  min_tree_depth=None,
                  max_tree_depth=None,
                  transform_to_stereotaxic_space=True):
-        vistaplotter = vistaplotter or io.pv.Plotter() # TODO: if plotter is None, maybe don't create one or load meshes
         atlas_name = atlas_name or io.preferences['default_atlas']
-        super().__init__(atlas_name=atlas_name, check_latest=False)
+        super().__init__(atlas_name=atlas_name, check_latest=True)
 
         self.name = atlas_name
         self.plotter = vistaplotter
@@ -52,16 +50,19 @@ class VVASPAtlas(BrainGlobeAtlas):
         self.show_bregma = show_bregma
         self.structures_list = pd.DataFrame(self.structures_list) # make BrainGlobeAtlas attribute a dataframe for easier indexing
         self.structures_list['mesh_is_loaded'] = False # track which meshes we want to load
-        self.select_region_meshes_to_load(mapping, min_tree_depth, max_tree_depth)
-        self.initialize()
+        self._select_region_meshes_to_load(mapping, min_tree_depth, max_tree_depth)
+        self._initialize_transformations()
+        if vistaplotter is not None:
+            self._load_meshes()
+            self._show_root_and_bregma_actors()
 
-    def select_region_meshes_to_load(self, mapping='Beryl', min_tree_depth=None, max_tree_depth=None):
-        if mapping:
+    def _select_region_meshes_to_load(self, mapping='Beryl', min_tree_depth=None, max_tree_depth=None):
+        if mapping is not None and min_tree_depth is None and max_tree_depth is None:
             mapping_file = Path(__file__).parent.parent / 'assets' / f'{mapping}.csv'
             mapping_structures = pd.read_csv(mapping_file)['acronym'].values
             self.mapping_structures = mapping_structures
             mesh_inds_to_show = self.structures_list.acronym.isin(mapping_structures)
-        elif min_tree_depth is not None and max_tree_depth is not None:
+        elif min_tree_depth is not None and max_tree_depth is not None and mapping is None:
             # get the inds within the desired tree depths
             mesh_inds_to_show = self.structures_list[self.structures_list['structure_id_path'].apply(lambda x: min_tree_depth <= len(x) <= max_tree_depth)].index
             temp = np.zeros(len(self.structures_list)).astype(bool)
@@ -72,30 +73,27 @@ class VVASPAtlas(BrainGlobeAtlas):
 
         self.structures_list['mesh_is_loaded'] = mesh_inds_to_show 
         self.structures_list.loc[self.structures_list.acronym == 'root','mesh_is_loaded'] = 1 # always load the root mesh
-        self._initialize_transformations()
-
-    @property
-    def structures_list_remapped(self):
-        return self.structures_list[self.structures_list.mesh_is_loaded == 1] 
-    
-    def meshcolor(self,acronym):
-        return self.structures[acronym]['rgb_triplet']
 
     def _initialize_transformations(self):
         prefs = io.preferences['atlas_transformations'][self.name]
         self.bregma_location = np.array(prefs['bregma_location']) * self.metadata['resolution']
         self.rotation_angles = -np.array(prefs['angles'])
-        self.rotmat = rotation_matrix_from_degrees(*self.rotation_angles, order='xyz')
+        self.rotation_matrix = rotation_matrix_from_degrees(*self.rotation_angles, order='xyz')
 
-    def initialize(self):
+    def _load_meshes(self):
         ''' Load meshes, rotate, and translate them appropriately '''
         for region_acronym in self.structures_list_remapped.acronym:
-            mesh = pv.read(self.meshfile_from_structure(region_acronym))
+            try:
+                mesh = pv.read(self.meshfile_from_structure(region_acronym))
+            except FileNotFoundError:
+                print(f'Mesh file could not be found for {region_acronym}')
+                continue
             if self.transformed:
                 mesh.translate(-self.bregma_location, inplace=True)
-                mesh.points = np.dot(mesh.points, self.rotmat.T)
+                mesh.points = np.dot(mesh.points, self.rotation_matrix.T)
             self.meshes[region_acronym] = mesh
-        
+    
+    def _show_root_and_bregma_actors(self):
         # Handle showing root and bregma meshes
         if self.show_root and self.plotter is not None:
             self.root_actor = self.plotter.add_mesh(self.meshes['root'],
@@ -105,14 +103,21 @@ class VVASPAtlas(BrainGlobeAtlas):
                                   name='root')
         if self.show_bregma and self.plotter is not None:
             self.bregma_actor = self.plotter.add_mesh(io.pv.Sphere(radius=100, center=(0, 0, 0)))
-            
+
+    @property
+    def structures_list_remapped(self):
+        return self.structures_list[self.structures_list.mesh_is_loaded == 1] 
+    
+    def meshcolor(self,acronym):
+        return self.structures[acronym]['rgb_triplet']       
+
     def bregma_positions_to_structures(self, positions_um, hierarchy_lev=None):
         voxels = self.bregma_positions_to_atlas_voxels(positions_um)
         region_acronyms = [self.structure_from_coords(a, as_acronym=True, hierarchy_lev=hierarchy_lev) for a in voxels]
         return region_acronyms
 
     def bregma_positions_to_atlas_voxels(self, mlapdv_positions_um):
-        mlapdv_positions_um = np.dot(mlapdv_positions_um, self.rotmat)
+        mlapdv_positions_um = np.dot(mlapdv_positions_um, self.rotation_matrix)
         mlapdv_positions_um = mlapdv_positions_um + self.bregma_location
         voxels = np.array(np.round(mlapdv_positions_um / self.metadata['resolution'])).astype(int)
         # TODO: handle case where outside of volume and either clip (with warning) or raise error?
@@ -121,7 +126,7 @@ class VVASPAtlas(BrainGlobeAtlas):
     def atlas_voxels_to_bregma_positions(self, voxels):
         positions_um = np.array(voxels) * self.metadata['resolution']
         positions_um = positions_um - self.bregma_location
-        positions_um = np.dot(positions_um, self.rotmat.T)
+        positions_um = np.dot(positions_um, self.rotation_matrix.T)
         return positions_um
 
     def atlas_voxels_to_annotation_boundaries(self,bresenham_line, return_midpoints=False):
@@ -143,12 +148,14 @@ class VVASPAtlas(BrainGlobeAtlas):
             return region_boundaries, midpoints
 
     def show_all_regions(self, side='both', add_root=False, **pv_kwargs):
-        for region in self.structures.acronym:
+        for region in self.structures_list_remapped.acronym:
             if region != 'root' or add_root:
                 self.add_atlas_region_mesh(region, side=side, **pv_kwargs)
 
     def add_atlas_region_mesh(self, region_acronym, side='both', force_replot=False, **pv_kwargs):
         # update user kwargs with defaults if they dont exist
+        if self.plotter is None:
+            raise ValueError('No PyVista plotter found. Instantiate the VVASPAtlas with a PyVista plotter to render meshes.')
         for k in PV_KWARG_DEFAULTS.keys():
             if k not in pv_kwargs.keys():
                 pv_kwargs[k] = PV_KWARG_DEFAULTS[k]
@@ -248,9 +255,9 @@ class VVASPAtlas(BrainGlobeAtlas):
             return slc
         else:
             remapped_slc = np.zeros_like(slc)
-            for acronym in self.structures.acronym:
-                if acronym == 'root':
-                    continue
+            for acronym in self.structures_list_remapped.acronym:
+                #if acronym == 'root':
+                #    continue
                 area_mask_num = self.get_structure_mask_from_slice(slc,acronym)
                 msk = area_mask_num != 0 
                 remapped_slc[msk] = area_mask_num[msk]
@@ -323,7 +330,7 @@ class VVASPAtlas(BrainGlobeAtlas):
         temp = list(self.visible_region_actors.keys())
         for region in temp:
             self.remove_atlas_region_mesh(region)
-        if self.show_root:
+        if self.show_root and self.plotter is not None:
             self.plotter.remove_actor(self.root_actor)
-        if self.show_bregma:
+        if self.show_bregma and self.plotter is not None:
             self.plotter.remove_actor(self.bregma_actor)

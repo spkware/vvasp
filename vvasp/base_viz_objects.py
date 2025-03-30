@@ -34,13 +34,13 @@ class VVASPBaseVisualizerClass(ABC):
     Max Melin, 2024
     """
     def __init__(self,
-                 vistaplotter,
+                 vistaplotter=None,
                  starting_position=(0,0,0),
                  starting_angles=(0,0,0),
                  active=True,
-                 pyvista_mesh_args=None,
+                 pyvista_mesh_args=None, # a list of dicts with keyword arguments for plotter.add_mesh()
                  info=None,
-                 **kwargs): # a list of dicts with keyword arguments for plotter.add_mesh()
+                 **kwargs):
         self.info = info
         if pyvista_mesh_args is None:
             pyvista_mesh_args = {}
@@ -55,8 +55,9 @@ class VVASPBaseVisualizerClass(ABC):
         self.meshes = []
         self.actors = []
         
-        self.create_meshes()
-        self.spawn_actors()
+        if self.plotter is not None:
+            self.create_meshes()
+            self.spawn_actors()
         self.set_location(np.array(starting_position),np.array(starting_angles))
         
     @property
@@ -105,25 +106,26 @@ class VVASPBaseVisualizerClass(ABC):
             self.origin[:] = position_shift 
             position_shift = position_shift - old_position
         # move the meshes
-        for i,mesh in enumerate(self.meshes):
-            mesh.shallow_copy(mesh.translate(position_shift))
+        if self.plotter is not None:
+            for i,mesh in enumerate(self.meshes):
+                mesh.shallow_copy(mesh.translate(position_shift))
     
     def _rotate(self, angle_shift, increment=True, **kwargs):
         if increment:
             self.angles[:] += angle_shift
         else:
             assert len(angle_shift) == 3, ValueError('Angle has to be 3 values') 
-            old_angles = np.array(self.angles)
             self.angles[:] = angle_shift 
         # rotate the meshes
         old_rotation_matrix = self.rotation_matrix
         self.rotation_matrix = rotation_matrix_from_degrees(*self.angles)
-        for i,mesh in enumerate(self.meshes):
-            # rotations are performed relative to the objects origin, not the origin of the pyvista scene
-            # So we need to translate the mesh to the pyvista origin, rotate it, and then translate it back to its original spot
-            points = old_rotation_matrix.T @ (mesh.points - self.origin).T
-            mesh.points = (self.rotation_matrix @ points).T + self.origin
-            mesh.shallow_copy(mesh)
+        if self.plotter is not None:
+            for i,mesh in enumerate(self.meshes):
+                # rotations are performed relative to the objects origin, not the origin of the pyvista scene
+                # So we need to translate the mesh to the pyvista origin, rotate it, and then translate it back to its original spot
+                points = old_rotation_matrix.T @ (mesh.points - self.origin).T
+                mesh.points = (self.rotation_matrix @ points).T + self.origin
+                mesh.shallow_copy(mesh)
             
     def make_active(self):
         self.active = True
@@ -138,6 +140,8 @@ class VVASPBaseVisualizerClass(ABC):
             actor.prop.color = INACTIVE_COLOR
     
     def __del__(self):
+        if self.plotter is None:
+            return
         for actor in self.actors:
             self.plotter.remove_actor(actor)
     
@@ -162,15 +166,17 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
         #thus we will handle them separately from the other meshes
         if root_intersection_mesh is not None:
             self.root_intersection_mesh = root_intersection_mesh
-        self.ball_mesh = pv.Sphere(center=np.array(starting_position).astype(np.float32), radius=SPHERE_RADIUS)
-        self.ball_actor = vistaplotter.add_mesh(self.ball_mesh, color='blue')
+        if vistaplotter is not None:
+            self.ball_mesh = pv.Sphere(center=np.array(starting_position).astype(np.float32), radius=SPHERE_RADIUS)
+            self.ball_actor = vistaplotter.add_mesh(self.ball_mesh, color='blue')
 
         super().__init__(vistaplotter, starting_position, starting_angles, active, **kwargs)
 
-        if active:
-            self.make_active()
-        else:
-            self.make_inactive()
+        if self.plotter is not None:
+            if active:
+                self.make_active()
+            else:
+                self.make_inactive()
 
     @property
     @abstractmethod
@@ -217,7 +223,7 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
         return points
     
     def compute_region_intersections(self, vvasp_atlas):
-        # Compute the brain regions that the probe travels through
+        '''Compute the brain regions that the probe travels through'''
         # TODO: optionally take a channelmap
         region_boundary_distances = [None] * len(self.shank_origins)
         region_acronyms = [None] * len(self.shank_origins)
@@ -237,12 +243,12 @@ class AbstractBaseProbe(VVASPBaseVisualizerClass):
 
     def set_location(self,origin,angles):
         super().set_location(origin,angles)
-        if hasattr(self, 'root_intersection_mesh'):
+        if hasattr(self, 'root_intersection_mesh') and self.plotter is not None:
             self._update_entry_point_mesh()
             
     def move(self, direction, multiplier):
         super().move(direction, multiplier)
-        if hasattr(self, 'root_intersection_mesh'):
+        if hasattr(self, 'root_intersection_mesh') and self.plotter is not None:
             self._update_entry_point_mesh()
     
     def _update_entry_point_mesh(self):

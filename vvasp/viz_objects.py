@@ -47,7 +47,7 @@ class Probe(AbstractBaseProbe):
     name = "Probe"
     def __init__(self,
                  probetype,
-                 vistaplotter,
+                 vistaplotter=None,
                  starting_position=(0,0,0),
                  starting_angles=(0,0,0),
                  active=True,
@@ -94,7 +94,7 @@ class NeuropixelsChronicHolder(AbstractBaseProbe):
     def __init__(self,
                  probetype,
                  chassis_type,
-                 vistaplotter,
+                 vistaplotter=None,
                  starting_position=(0,0,0),
                  starting_angles=(0,0,0),
                  active=True,
@@ -144,11 +144,7 @@ class NeuropixelsChronicHolder(AbstractBaseProbe):
 
         mesh = pv.read(self.mesh_path).scale(scale_factor)
         mesh = mesh.translate(mesh_origin)
-        mesh = mesh.rotate_x(mesh_rotation[0])
-        mesh = mesh.rotate_y(mesh_rotation[1])
-        mesh = mesh.rotate_z(mesh_rotation[2])
-        #rotated_translation = rotation_matrix_from_degrees(*mesh_rotation).T @ mesh_origin # the translation of the mesh must be rotated into new axes
-        #mesh = mesh.translate(rotated_translation)
+        mesh.points = np.dot(mesh.points, rotation_matrix_from_degrees(*mesh_rotation,order='xyz').T)
         self.meshes.append(mesh)
         self.active_colors.append('gray')
         self.inactive_colors.append('gray')
