@@ -38,13 +38,19 @@ class VVASPAtlas(BrainGlobeAtlas):
                  min_tree_depth=None,
                  max_tree_depth=None,
                  transform_to_stereotaxic_space=True,
-                 check_latest_atlas=False):
+                 check_latest_atlas=False,
+                 bregma_location=None,
+                 rotation_angles=None,
+                 scaling=None):
         atlas_name = atlas_name or io.preferences['default_atlas']
         super().__init__(atlas_name=atlas_name, check_latest=check_latest_atlas)
 
         self.name = atlas_name
         self.plotter = vistaplotter
         self.transformed = transform_to_stereotaxic_space
+        self.min_tree_depth = min_tree_depth
+        self.max_tree_depth = max_tree_depth
+        self.mapping = mapping
         self.meshes = {}
         self.visible_region_actors = {}
         self.show_root = show_root
@@ -52,10 +58,31 @@ class VVASPAtlas(BrainGlobeAtlas):
         self.structures_list = pd.DataFrame(self.structures_list) # make BrainGlobeAtlas attribute a dataframe for easier indexing
         self.structures_list['mesh_is_loaded'] = False # track which meshes we want to load
         self._select_region_meshes_to_load(mapping, min_tree_depth, max_tree_depth)
-        self._initialize_transformations()
+        self._initialize_transformations(bregma_location=bregma_location, rotation_angles=rotation_angles, scaling=scaling)
         if vistaplotter is not None:
             self._load_meshes()
             self._show_root_and_bregma_actors()
+        
+    @classmethod
+    def load_atlas_from_experiment_file(cls, experiment_file_path, vistaplotter=None):
+        '''An alternate constructor that creates a VVASPAtlas from a VVASP experiment file.'''
+        atlas_data = io.load_experiment_file(experiment_file_path)['atlas']
+
+        # Format the dictionary to pass the whole thing
+        atlas_data['atlas_name'] = atlas_data.pop('name')
+        visible_regions = atlas_data.pop('visible_regions')
+
+        # Ensure compatibility with legacy files
+        atlas_data.setdefault('min_tree_depth', None)
+        atlas_data.setdefault('max_tree_depth', None)
+        atlas_data.setdefault('mapping', None)
+
+        # return instance of the class
+        new_atlas = cls(vistaplotter, **atlas_data)
+        for region in visible_regions:
+            new_atlas.add_atlas_region_mesh(region)
+        return new_atlas
+
 
     def _select_region_meshes_to_load(self, mapping='Beryl', min_tree_depth=None, max_tree_depth=None):
         if mapping is not None and min_tree_depth is None and max_tree_depth is None:
@@ -75,12 +102,13 @@ class VVASPAtlas(BrainGlobeAtlas):
         self.structures_list['mesh_is_loaded'] = mesh_inds_to_show 
         self.structures_list.loc[self.structures_list.acronym == 'root','mesh_is_loaded'] = 1 # always load the root mesh
 
-    def _initialize_transformations(self):
+    def _initialize_transformations(self, bregma_location=None, rotation_angles=None, scaling=None):
         prefs = io.preferences['atlas_transformations'][self.name]
-        self.bregma_location = np.array(prefs['bregma_location']) * self.metadata['resolution']
-        self.rotation_angles = -np.array(prefs['angles'])
+        self.bregma_location = np.array(bregma_location) if bregma_location is not None else np.array(prefs['bregma_location'])
+        self.bregma_location_scaled = self.bregma_location * self.metadata['resolution']
+        self.rotation_angles = np.array(rotation_angles) if rotation_angles is not None else np.array(prefs['angles'])
         self.rotation_matrix = rotation_matrix_from_degrees(*self.rotation_angles, order='xyz')
-        self.scaling = prefs.get('scaling',[1.,1.,1.]) # no scaling if it doesn't exist
+        self.scaling = np.array(scaling) if scaling is not None else np.array(prefs.get('scaling',[1.,1.,1.])) # no scaling if it doesn't exist
 
     def _load_meshes(self):
         ''' Load meshes, rotate, and translate them appropriately '''
@@ -91,7 +119,7 @@ class VVASPAtlas(BrainGlobeAtlas):
                 print(f'Mesh file could not be found for {region_acronym}')
                 continue
             if self.transformed:
-                mesh.translate(-self.bregma_location, inplace=True)
+                mesh.translate(-self.bregma_location_scaled, inplace=True)
                 mesh.points = np.dot(mesh.points, self.rotation_matrix.T)
                 mesh.scale(self.scaling, inplace=True)
             self.meshes[region_acronym] = mesh
@@ -122,7 +150,7 @@ class VVASPAtlas(BrainGlobeAtlas):
     def bregma_positions_to_atlas_voxels(self, mlapdv_positions_um, round=True):
         mlapdv_positions_um = mlapdv_positions_um / self.scaling
         mlapdv_positions_um = np.dot(mlapdv_positions_um, self.rotation_matrix)
-        mlapdv_positions_um = mlapdv_positions_um + self.bregma_location
+        mlapdv_positions_um = mlapdv_positions_um + self.bregma_location_scaled
         voxels = mlapdv_positions_um / self.metadata['resolution']
         # TODO: handle case where outside of volume and either clip (with warning) or raise error?
         if round:
@@ -132,7 +160,7 @@ class VVASPAtlas(BrainGlobeAtlas):
     
     def atlas_voxels_to_bregma_positions(self, voxels):
         positions_um = np.array(voxels) * self.metadata['resolution']
-        positions_um = positions_um - self.bregma_location
+        positions_um = positions_um - self.bregma_location_scaled
         positions_um = np.dot(positions_um, self.rotation_matrix.T)
         positions_um = positions_um * self.scaling
         return positions_um
@@ -323,7 +351,10 @@ class VVASPAtlas(BrainGlobeAtlas):
                     min_tree_depth=self.min_tree_depth,
                     max_tree_depth=self.max_tree_depth,
                     mapping=self.mapping,
-                    visible_regions=self.visible_atlas_regions)
+                    visible_regions=self.visible_atlas_regions,
+                    bregma_location=self.bregma_location.tolist(),
+                    rotation_angles=self.rotation_angles.tolist(),
+                    scaling=self.scaling)
     
     @property
     def visible_atlas_regions(self):

@@ -105,6 +105,7 @@ def save_experiment(probes, atlas, filepath):
 
 
 def load_experiment_file(filepath):
+    filepath = Path(filepath).with_suffix('.json')
     if not os.path.exists(filepath):
         return None
     with open(str(filepath),'r') as fd:

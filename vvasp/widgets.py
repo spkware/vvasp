@@ -336,14 +336,9 @@ class VVASPPlanner(QMainWindow):
         if experiment_data is None:
             return
         print(experiment_data['atlas'], flush=True)
-        self.vvasp_atlas = atlas.VVASPAtlas(self.plotter,
-                                            atlas_name=experiment_data['atlas']['name'],
-                                            mapping=experiment_data['atlas'].get('mapping',None),
-                                            min_tree_depth=experiment_data['atlas'].get('min_tree_depth',None),
-                                            max_tree_depth=experiment_data['atlas'].get('max_tree_depth',None))
 
-        for r in experiment_data['atlas']['visible_regions']:
-            self.vvasp_atlas.add_atlas_region_mesh(r)
+        self.vvasp_atlas = atlas.VVASPAtlas.load_atlas_from_experiment_file(self.filename, self.plotter)
+
         self.bottom_horizontal_widgets.removeWidget(self.atlas_view_box)
         del self.atlas_view_box
         self._init_atlas_view_box()

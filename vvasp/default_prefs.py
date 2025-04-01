@@ -20,11 +20,11 @@ DEFAULT_PREFERENCES = {'default_atlas':'allen_mouse_25um',
                        'atlas_transformations':
                                {'allen_mouse_25um':
                                        {'bregma_location':[216, 18,228],
-                                        'angles':[90, -5, 90], # -5 corrects for small tilt in the atlas
+                                        'angles':[-90, 5, -90], # 5 corrects for small tilt in the atlas
                                         'scaling':[0.952, 1.031, 0.885]}, # [ML (x), AP (y), DV (z)]
                                 'whs_sd_rat_39um':
                                         {'bregma_location':[371, 72, 266],
-                                         'angles':[90, -4, 90], # -4 corrects for a small tilt in the atlas
+                                         'angles':[-90, 4, -90], # 4 corrects for a small tilt in the atlas
                                          'scaling': [1.,1.,1.]}, # [ML (x), AP (y), DV (z)]
                                },
                        'default_save_dir':str(EXPERIMENT_DIR),
@@ -75,7 +75,7 @@ DEFAULT_MOVEMENT_KEYBINDS = {'a': ['left', 100],
                              'Ctrl+Shift+f': ['retract', 10],
                              'Ctrl+Shift+c': ['advance', 10],}
 
-DEFAULT_STATIC_KEYBINDS = {'Ctrl+o': 'open_experiment',
+DEFAULT_STATIC_KEYBINDS = {#'Ctrl+o': 'open_experiment',
                            #'Ctrl+s': 'save',
                            #'Ctrl+Shift+s': 'save as',
                            #'Ctrl+Shift+o': 'open',
