@@ -119,17 +119,22 @@ class VVASPAtlas(BrainGlobeAtlas):
         region_acronyms = [self.structure_from_coords(a, as_acronym=True, hierarchy_lev=hierarchy_lev) for a in voxels]
         return region_acronyms
 
-    def bregma_positions_to_atlas_voxels(self, mlapdv_positions_um):
+    def bregma_positions_to_atlas_voxels(self, mlapdv_positions_um, round=True):
+        mlapdv_positions_um = mlapdv_positions_um / self.scaling
         mlapdv_positions_um = np.dot(mlapdv_positions_um, self.rotation_matrix)
         mlapdv_positions_um = mlapdv_positions_um + self.bregma_location
-        voxels = np.array(np.round(mlapdv_positions_um / self.metadata['resolution'])).astype(int)
+        voxels = mlapdv_positions_um / self.metadata['resolution']
         # TODO: handle case where outside of volume and either clip (with warning) or raise error?
-        return voxels
+        if round:
+            return np.round(voxels).astype(int)
+        else:
+            return voxels
     
     def atlas_voxels_to_bregma_positions(self, voxels):
         positions_um = np.array(voxels) * self.metadata['resolution']
         positions_um = positions_um - self.bregma_location
         positions_um = np.dot(positions_um, self.rotation_matrix.T)
+        positions_um = positions_um * self.scaling
         return positions_um
 
     def atlas_voxels_to_annotation_boundaries(self,bresenham_line, return_midpoints=False):

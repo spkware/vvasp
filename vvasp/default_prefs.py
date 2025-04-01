@@ -21,7 +21,7 @@ DEFAULT_PREFERENCES = {'default_atlas':'allen_mouse_25um',
                                {'allen_mouse_25um':
                                        {'bregma_location':[216, 18,228],
                                         'angles':[90, -5, 90], # -5 corrects for small tilt in the atlas
-                                        'scaling':[1.,1.,1.]}, # [ML (x), AP (y), DV (z)]
+                                        'scaling':[0.952, 1.031, 0.885]}, # [ML (x), AP (y), DV (z)]
                                 'whs_sd_rat_39um':
                                         {'bregma_location':[371, 72, 266],
                                          'angles':[90, -4, 90], # -4 corrects for a small tilt in the atlas
