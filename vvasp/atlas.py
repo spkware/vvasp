@@ -354,7 +354,7 @@ class VVASPAtlas(BrainGlobeAtlas):
                     visible_regions=self.visible_atlas_regions,
                     bregma_location=self.bregma_location.tolist(),
                     rotation_angles=self.rotation_angles.tolist(),
-                    scaling=self.scaling)
+                    scaling=self.scaling.tolist())
     
     @property
     def visible_atlas_regions(self):
