@@ -1,3 +1,13 @@
+"""
+A module for working with brain atlases in VVASP, extending BrainGlobeAtlas functionality.
+
+This module provides tools for:
+- Loading and managing brain atlas data
+- Transforming between bregma and atlas coordinate spaces
+- Visualizing 2D and 3D atlas regions
+- Mapping brain regions and their hierarchies
+"""
+
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from functools import cached_property
@@ -7,6 +17,14 @@ from . import io
 from .utils import *
 
 def list_availible_atlases():
+    """
+    List all available atlases in the atlas directory.
+
+    Returns
+    -------
+    list
+        List of atlas names as strings.
+    """
     return [x.name for x in io.ATLAS_DIR.glob('*')]
 
 SLICE_TO_BG_SPACE = dict(coronal='frontal',
@@ -20,15 +38,43 @@ PV_KWARG_DEFAULTS = dict(opacity=.7,
                          silhouette=False) 
 
 class VVASPAtlas(BrainGlobeAtlas):
-    ''' 
-    The VVASPAtlas extends the BrainGlobeAtlas object to provide additional functionality:
+    """
+    Extended BrainGlobeAtlas with additional functionality for visualization and coordinate transforms.
 
-    1. Manages mapping of sub-regions to their parents (usefull when full atlas parcellation isn't needed).
-    2. Transforms between bregma space (ml, ap, dv) and atlas space (voxels).
-    3. Computes the path of a probe or other object through the atlas.
-    4. Provides an interface to plot regions in 3D using pyvista.
-    5. Provides an interface to plot 2D slices of the atlas annotation volume.
-    '''
+    This class extends BrainGlobeAtlas to provide:
+    1. Region hierarchy mapping and parent-child relationships
+    2. Coordinate transformations between bregma and atlas spaces
+    3. Probe trajectory computation through atlas space
+    4. 3D visualization using PyVista
+    5. 2D slice visualization of atlas annotations
+
+    Parameters
+    ----------
+    vistaplotter : pyvista.Plotter, optional
+        PyVista plotter instance for 3D visualization
+    atlas_name : str, optional
+        Name of the atlas to load
+    show_root : bool, default=True
+        Whether to show the root mesh
+    show_bregma : bool, default=True
+        Whether to show bregma point
+    mapping : str, default='Beryl'
+        Name of region mapping to use
+    min_tree_depth : int, optional
+        Minimum depth in region hierarchy to include
+    max_tree_depth : int, optional
+        Maximum depth in region hierarchy to include
+    transform_to_stereotaxic_space : bool, default=True
+        Whether to transform coordinates to stereotaxic space
+    check_latest_atlas : bool, default=False
+        Whether to check for latest atlas version
+    bregma_location : array-like, optional
+        Custom bregma location in atlas space
+    rotation_angles : array-like, optional
+        Custom rotation angles for coordinate transform
+    scaling : array-like, optional
+        Custom scaling factors for coordinate transform
+    """
     def __init__(self, 
                  vistaplotter=None,
                  atlas_name=None,
@@ -65,7 +111,21 @@ class VVASPAtlas(BrainGlobeAtlas):
         
     @classmethod
     def load_atlas_from_experiment_file(cls, experiment_file_path, vistaplotter=None):
-        '''An alternate constructor that creates a VVASPAtlas from a VVASP experiment file.'''
+        """
+        Create a VVASPAtlas instance from a VVASP experiment file.
+
+        Parameters
+        ----------
+        experiment_file_path : str or Path
+            Path to the experiment file
+        vistaplotter : pyvista.Plotter, optional
+            PyVista plotter instance for 3D visualization
+
+        Returns
+        -------
+        VVASPAtlas
+            New atlas instance configured according to experiment file
+        """
         atlas_data = io.load_experiment_file(experiment_file_path)['atlas']
 
         # Format the dictionary to pass the whole thing
@@ -85,6 +145,23 @@ class VVASPAtlas(BrainGlobeAtlas):
 
 
     def _select_region_meshes_to_load(self, mapping='Beryl', min_tree_depth=None, max_tree_depth=None):
+        """
+        Select which region meshes should be loaded based on mapping or tree depth criteria.
+
+        Parameters
+        ----------
+        mapping : str, optional
+            Name of region mapping file to use
+        min_tree_depth : int, optional
+            Minimum depth in region hierarchy to include
+        max_tree_depth : int, optional
+            Maximum depth in region hierarchy to include
+
+        Raises
+        ------
+        ValueError
+            If both mapping and tree depth parameters are provided
+        """
         if mapping is not None and min_tree_depth is None and max_tree_depth is None:
             mapping_file = Path(__file__).parent.parent / 'assets' / f'{mapping}.csv'
             mapping_structures = pd.read_csv(mapping_file)['acronym'].values
@@ -103,6 +180,18 @@ class VVASPAtlas(BrainGlobeAtlas):
         self.structures_list.loc[self.structures_list.acronym == 'root','mesh_is_loaded'] = 1 # always load the root mesh
 
     def _initialize_transformations(self, bregma_location=None, rotation_angles=None, scaling=None):
+        """
+        Initialize coordinate transformation parameters.
+
+        Parameters
+        ----------
+        bregma_location : array-like, optional
+            Custom bregma location in atlas space
+        rotation_angles : array-like, optional
+            Custom rotation angles for coordinate transform
+        scaling : array-like, optional
+            Custom scaling factors for coordinate transform
+        """
         prefs = io.preferences['atlas_transformations'][self.name]
         self.bregma_location = np.array(bregma_location) if bregma_location is not None else np.array(prefs['bregma_location'])
         self.bregma_location_scaled = self.bregma_location * self.metadata['resolution']
@@ -111,7 +200,12 @@ class VVASPAtlas(BrainGlobeAtlas):
         self.scaling = np.array(scaling) if scaling is not None else np.array(prefs.get('scaling',[1.,1.,1.])) # no scaling if it doesn't exist
 
     def _load_meshes(self):
-        ''' Load meshes, rotate, and translate them appropriately '''
+        """
+        Load region meshes and apply appropriate transformations.
+        
+        Loads meshes for all selected regions, applies rotation, translation,
+        and scaling according to the atlas configuration.
+        """
         for region_acronym in self.structures_list_remapped.acronym:
             try:
                 mesh = pv.read(self.meshfile_from_structure(region_acronym))
@@ -125,6 +219,9 @@ class VVASPAtlas(BrainGlobeAtlas):
             self.meshes[region_acronym] = mesh
     
     def _show_root_and_bregma_actors(self):
+        """
+        Add root mesh and bregma point actors to the PyVista plotter if enabled.
+        """
         # Handle showing root and bregma meshes
         if self.show_root and self.plotter is not None:
             self.root_actor = self.plotter.add_mesh(self.meshes['root'],
@@ -139,15 +236,58 @@ class VVASPAtlas(BrainGlobeAtlas):
     def structures_list_remapped(self):
         return self.structures_list[self.structures_list.mesh_is_loaded == 1] 
     
-    def meshcolor(self,acronym):
+    def meshcolor(self, acronym):
+        """
+        Get the RGB color for a given region acronym.
+
+        Parameters
+        ----------
+        acronym : str
+            Region acronym
+
+        Returns
+        -------
+        tuple
+            RGB color triplet
+        """
         return self.structures[acronym]['rgb_triplet']       
 
     def bregma_positions_to_structures(self, positions_um, hierarchy_lev=None):
+        """
+        Convert positions in bregma space to structure acronyms.
+
+        Parameters
+        ----------
+        positions_um : array-like
+            Positions in micrometers relative to bregma
+        hierarchy_lev : int, optional
+            Hierarchy level to use for structure lookup
+
+        Returns
+        -------
+        list
+            List of structure acronyms corresponding to each position
+        """
         voxels = self.bregma_positions_to_atlas_voxels(positions_um)
         region_acronyms = [self.structure_from_coords(a, as_acronym=True, hierarchy_lev=hierarchy_lev) for a in voxels]
         return region_acronyms
 
     def bregma_positions_to_atlas_voxels(self, mlapdv_positions_um, round=True):
+        """
+        Convert positions from bregma space to atlas voxel coordinates.
+
+        Parameters
+        ----------
+        mlapdv_positions_um : array-like
+            Positions in micrometers relative to bregma (ML, AP, DV)
+        round : bool, default=True
+            Whether to round the voxel coordinates to integers
+
+        Returns
+        -------
+        ndarray
+            Positions in atlas voxel coordinates
+        """
         mlapdv_positions_um = mlapdv_positions_um / self.scaling
         mlapdv_positions_um = np.dot(mlapdv_positions_um, self.rotation_matrix)
         mlapdv_positions_um = mlapdv_positions_um + self.bregma_location_scaled
@@ -159,17 +299,43 @@ class VVASPAtlas(BrainGlobeAtlas):
             return voxels
     
     def atlas_voxels_to_bregma_positions(self, voxels):
+        """
+        Convert positions from atlas voxel coordinates to bregma space.
+
+        Parameters
+        ----------
+        voxels : array-like
+            Positions in atlas voxel coordinates
+
+        Returns
+        -------
+        ndarray
+            Positions in micrometers relative to bregma (ML, AP, DV)
+        """
         positions_um = np.array(voxels) * self.metadata['resolution']
         positions_um = positions_um - self.bregma_location_scaled
         positions_um = np.dot(positions_um, self.rotation_matrix.T)
         positions_um = positions_um * self.scaling
         return positions_um
 
-    def atlas_voxels_to_annotation_boundaries(self,bresenham_line, return_midpoints=False):
-        '''
-        Uses a bresenham line to compute the atlas voxels where the line intersects the boundaries between regions.
-        If return_midpoints is True, also return the midpoints between the region boundaries.
-        '''
+    def atlas_voxels_to_annotation_boundaries(self, bresenham_line, return_midpoints=False):
+        """
+        Find region boundaries along a line through the atlas volume.
+
+        Parameters
+        ----------
+        bresenham_line : array-like
+            Line of voxel coordinates through the atlas volume
+        return_midpoints : bool, default=False
+            Whether to return midpoints between region boundaries
+
+        Returns
+        -------
+        ndarray
+            Coordinates of region boundaries
+        ndarray, optional
+            Coordinates of midpoints between boundaries (if return_midpoints=True)
+        """
         bresenham_line = np.clip(bresenham_line, 0, np.array(self.annotation.shape) - 1)
         region_ids = self.annotation[tuple(bresenham_line.T)]
         region_boundaries = bresenham_line[np.where(np.diff(region_ids) != 0)]
@@ -184,12 +350,42 @@ class VVASPAtlas(BrainGlobeAtlas):
             return region_boundaries, midpoints
 
     def show_all_regions(self, side='both', add_root=False, **pv_kwargs):
+        """
+        Show all selected regions in the 3D visualization.
+
+        Parameters
+        ----------
+        side : {'both', 'left', 'right'}, default='both'
+            Which side(s) of the brain to show
+        add_root : bool, default=False
+            Whether to include the root region
+        **pv_kwargs
+            Additional keyword arguments passed to PyVista's add_mesh
+        """
         for region in self.structures_list_remapped.acronym:
             if region != 'root' or add_root:
                 self.add_atlas_region_mesh(region, side=side, **pv_kwargs)
 
     def add_atlas_region_mesh(self, region_acronym, side='both', force_replot=False, **pv_kwargs):
-        # update user kwargs with defaults if they dont exist
+        """
+        Add a specific region to the 3D visualization.
+
+        Parameters
+        ----------
+        region_acronym : str
+            Acronym of the region to add
+        side : {'both', 'left', 'right'}, default='both'
+            Which side(s) of the brain to show
+        force_replot : bool, default=False
+            Whether to replot the region even if already visible
+        **pv_kwargs
+            Additional keyword arguments passed to PyVista's add_mesh
+
+        Raises
+        ------
+        ValueError
+            If no PyVista plotter is available or if side is invalid
+        """
         if self.plotter is None:
             raise ValueError('No PyVista plotter found. Instantiate the VVASPAtlas with a PyVista plotter to render meshes.')
         for k in PV_KWARG_DEFAULTS.keys():
@@ -214,12 +410,23 @@ class VVASPAtlas(BrainGlobeAtlas):
         self.visible_region_actors.update({region_acronym: actor})
     
     def remove_atlas_region_mesh(self, region_acronym):
+        """
+        Remove a specific region from the 3D visualization.
+
+        Parameters
+        ----------
+        region_acronym : str
+            Acronym of the region to remove
+        """
         if actor := self.visible_region_actors.pop(region_acronym, None):
             self.plotter.remove_actor(actor)
         else:
             print(f'No region {region_acronym} to remove')
     
     def clear_atlas(self):
+        """
+        Remove all regions from the 3D visualization.
+        """
         for region in self.visible_region_actors:
             self.remove_atlas_region_mesh(region)
         self.visible_region_actors = {}
@@ -230,24 +437,21 @@ class VVASPAtlas(BrainGlobeAtlas):
 
     def plot_2d_slice(self, slice_plane, slice_location_um, ax=None):
         """
-        Plot a 2D slice from the atlas annotation volume at a given location and plane.
-        Options for slice plane are 'coronal', 'sagittal', 'transverse'.
-        slice_location_um is the location of the slice in micrometers (relative to bregma).
-        The remapped annotation is returned by default, if return_full_annotation is set to True, the full annotation volume is returned.
+        Plot a 2D slice from the atlas annotation volume.
 
         Parameters
         ----------
-        slice_plane : string, {'coronal', 'sagittal', 'transverse'}
-            Defines the axis to slice along
-        slice_location_um : float, int
-            Defines the location of the slice in micrometers (relative to bregma).
+        slice_plane : {'coronal', 'sagittal', 'transverse'}
+            Plane to slice along
+        slice_location_um : float
+            Location of slice in micrometers relative to bregma
         ax : matplotlib.axes.Axes, optional
-            a matplotlib to plot on, by default None
+            Axes to plot on, creates new figure if None
 
         Returns
         -------
-        fig, ax
-            matplotlib figure and axes objects
+        tuple
+            (matplotlib.figure.Figure, matplotlib.axes.Axes)
         """        
         if ax is None:
             fig, ax = plt.subplots()
@@ -261,13 +465,29 @@ class VVASPAtlas(BrainGlobeAtlas):
         ax.imshow(colored_slice)
         return fig, ax
     
-    def get_2d_slice(self,slice_plane, slice_location_um, return_full_annotation=False):
-        '''
-        Get a 2D slice from the atlas annotation volume at a given location and plane.
-        Options for slice plane are 'coronal', 'sagittal', 'transverse'.
-        slice_location_um is the location of the slice in micrometers (relative to bregma).
-        The remapped annotation is returned by default, if return_full_annotation is set to True, the full annotation volume is returned.
-        '''
+    def get_2d_slice(self, slice_plane, slice_location_um, return_full_annotation=False):
+        """
+        Get a 2D slice from the atlas annotation volume.
+
+        Parameters
+        ----------
+        slice_plane : {'coronal', 'sagittal', 'transverse'}
+            Plane to slice along
+        slice_location_um : float
+            Location of slice in micrometers relative to bregma
+        return_full_annotation : bool, default=False
+            Whether to return full annotation or remapped version
+
+        Returns
+        -------
+        ndarray
+            2D array of region IDs at the specified slice
+
+        Raises
+        ------
+        AssertionError
+            If slice_plane is invalid
+        """
         assert slice_plane in SLICE_TO_BG_SPACE.keys(), f"Invalid slice plane, must be one of {SLICE_TO_BG_SPACE.keys()}"
 
         # use brainglobe space definition to ensure consistency across atlases, this finds the proper axis to slice along
@@ -299,22 +519,21 @@ class VVASPAtlas(BrainGlobeAtlas):
                 remapped_slc[msk] = area_mask_num[msk]
             return remapped_slc
         
-    def get_structure_mask_from_slice(self,slc, structure_acronym):
-        """Get a mask of a structure from a 2D slice of the atlas annotation volume. Useful to get the
-        mask of a parent region is desired when the parent is not present in the annotation volume (e.g. root, MO, VIS, etc.).
-        Similar to bg_atlas.get_structure_mask() but for a 2D slice, and therefore much faster.
+    def get_structure_mask_from_slice(self, slc, structure_acronym):
+        """
+        Get a mask of a structure from a 2D slice.
 
         Parameters
         ----------
         slc : ndarray
-            a 2D slice of the atlas annotation volume
-        structure_acronym : string
-            the structure acronym to get the mask for
+            2D slice from atlas annotation volume
+        structure_acronym : str
+            Acronym of structure to mask
 
         Returns
         -------
         ndarray
-            the mask of the structure in the slice, same size as slc
+            Binary mask of the structure in the slice
         """
         structure_id = self.structures[structure_acronym]["id"]
         descendants = self.get_structure_descendants(structure_acronym)
@@ -330,12 +549,18 @@ class VVASPAtlas(BrainGlobeAtlas):
 
     @cached_property
     def remapped_annotation(self):
-        '''
-        This function computes the remapped annotation volume if a mapping is provided.
-        It is quite slow since it remaps the whole volume. It is better to slice up the volume
-        first and then remap a slice if you only need to plot a particular 2D slice.
-        '''
-        # TODO: speed this function up
+        """
+        Get remapped version of full annotation volume.
+
+        Returns
+        -------
+        ndarray
+            Full annotation volume with regions remapped according to current mapping
+
+        Notes
+        -----
+        This is a computationally expensive operation that is cached after first call.
+        """
         print('Computing and caching remapped annotation. This may take some time.')
         res = np.empty_like(self.annotation)
         for area_acronym in tqdm(self.mapping_structures):
@@ -346,7 +571,14 @@ class VVASPAtlas(BrainGlobeAtlas):
 
     @property
     def atlas_properties(self):
-        '''Primarily used to write the atlas properties to a json file'''
+        """
+        Get dictionary of atlas properties for serialization.
+
+        Returns
+        -------
+        dict
+            Dictionary containing atlas configuration parameters
+        """
         return dict(name=self.name,
                     min_tree_depth=self.min_tree_depth,
                     max_tree_depth=self.max_tree_depth,
@@ -358,14 +590,32 @@ class VVASPAtlas(BrainGlobeAtlas):
     
     @property
     def visible_atlas_regions(self):
+        """
+        Get list of currently visible regions.
+
+        Returns
+        -------
+        list
+            List of region acronyms currently shown in visualization
+        """
         return list(self.visible_region_actors.keys())
     
     @property
     def all_atlas_regions(self):
+        """
+        Get list of all available regions.
+
+        Returns
+        -------
+        list
+            List of all region acronyms in the atlas
+        """
         return self.structures.acronym.values
 
     def __del__(self):
-        '''A modified destructor to remove any actors from the PyVista plotter when the object is deleted.'''
+        """
+        Clean up PyVista actors when object is deleted.
+        """
         temp = list(self.visible_region_actors.keys())
         for region in temp:
             self.remove_atlas_region_mesh(region)

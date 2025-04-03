@@ -1,12 +1,48 @@
+"""
+Visualization objects for VVASP 
+
+This module provides concrete implementations of visualization objects including:
+- Custom mesh objects for user-defined geometries
+- Probe visualizations for various probe types (Neuropixels, Utah array)
+- Chronic holder visualizations (Neuropixels chronic holders)
+- Additional experimental equipment (cranial windows, etc.)
+
+The module also provides a registry of available visualization classes for the GUI.
+"""
+
 from .utils import *
 from .io import probe_geometries, preferences, custom_user_mesh_transformations
 from .base_viz_objects import VVASPBaseVisualizerClass, AbstractBaseProbe, ACTIVE_COLOR, INACTIVE_COLOR
 
 class CustomMeshObject(VVASPBaseVisualizerClass):
     """
-    This class extends the VVASPBaseVisualizerClass and allows the user to load their own mesh files
-    into the pyvista scene. The base class handles the logic for moving the mesh, making it active, etc.
+    Custom mesh visualization object that loads user-provided mesh files.
 
+    This class allows users to load and visualize their own mesh files in the VVASP scene.
+    Handles mesh transformations, scaling, and positioning.
+
+    Parameters
+    ----------
+    mesh_paths : str or Path or list
+        Path(s) to mesh file(s) to load
+    vistaplotter : pyvista.Plotter
+        PyVista plotter instance for visualization
+    scale_factor : float, default=1000.0
+        Scaling factor to convert mesh units (typically mm) to scene units (μm)
+    pyvista_mesh_args : dict, optional
+        Keyword arguments passed to pv.read()
+    mesh_origin : tuple, default=(0,0,0)
+        Origin point for mesh rotations
+    mesh_rotation : tuple, default=(0,0,0)
+        Initial rotation angles (degrees) to apply to mesh
+    starting_position : tuple, default=(0,0,0)
+        Initial position in scene
+    starting_angles : tuple, default=(0,0,0)
+        Initial rotation angles in scene
+    active : bool, default=True
+        Whether object starts in active state
+    **kwargs : dict
+        Additional keyword arguments passed to VVASPBaseVisualizerClass
     """
     name = "CustomMeshObject"
     def __init__(self,
@@ -30,9 +66,11 @@ class CustomMeshObject(VVASPBaseVisualizerClass):
         
 
     def create_meshes(self):
-        # Your mesh creation logic here
-        # TODO: add a way to define transformations
-        # TODO: define a new origin for the mesh 
+        """
+        Create PyVista meshes from provided mesh files.
+        
+        Applies scaling, translation, and rotation according to initialization parameters.
+        """
         for p in self.mesh_paths:
             mesh = pv.read(p).scale(self.scale_factor)
             mesh = mesh.translate(self.mesh_origin)
@@ -44,6 +82,29 @@ class CustomMeshObject(VVASPBaseVisualizerClass):
             self.meshes.append(mesh)
     
 class Probe(AbstractBaseProbe):
+    """
+    Base probe visualization object for various probe types.
+
+    Visualizes probes based on geometry specifications from probe_geometries.
+    Supports multi-shank probes with customizable dimensions and offsets.
+
+    Parameters
+    ----------
+    probetype : str
+        Type of probe to visualize (e.g., 'NP24', 'NP1', 'utah10x10')
+    vistaplotter : pyvista.Plotter, optional
+        PyVista plotter instance for visualization
+    starting_position : tuple, default=(0,0,0)
+        Initial probe tip position
+    starting_angles : tuple, default=(0,0,0)
+        Initial probe rotation angles
+    active : bool, default=True
+        Whether probe starts in active state
+    root_intersection_mesh : pyvista.PolyData, optional
+        Brain surface mesh for intersection calculations
+    **kwargs : dict
+        Additional keyword arguments passed to AbstractBaseProbe
+    """
     name = "Probe"
     def __init__(self,
                  probetype,
@@ -61,6 +122,11 @@ class Probe(AbstractBaseProbe):
         super().__init__(vistaplotter, starting_position, starting_angles, active, root_intersection_mesh, **kwargs)
     
     def create_meshes(self):
+        """
+        Create rectangular meshes for each probe shank.
+        
+        Uses shank dimensions and offsets from probe geometry specification.
+        """
         for dims, offset in zip(self.shank_dims_um, self.shank_offsets_um):
             shank_vectors = np.array([[dims[0],dims[1],0], #the orthogonal set of vectors used to define a rectangle, these will be translated and rotated about the tip
                                       [dims[0],0,0],
@@ -70,7 +136,14 @@ class Probe(AbstractBaseProbe):
 
     @property
     def shank_origins(self):
-        '''Used for tracking the regions that each shank is in'''
+        """
+        Calculate current positions of probe shank origins.
+
+        Returns
+        -------
+        ndarray
+            Array of shape (n_shanks, 3) with current shank origin coordinates
+        """
         dims = np.stack(self.shank_dims_um) # shanks by dims
         offsets = np.stack(self.shank_offsets_um)
         offsets[:,0] = offsets[:,0] + dims[:,0] / 2 
@@ -79,7 +152,37 @@ class Probe(AbstractBaseProbe):
         return rotated_offsets + self.origin
 
 class NeuropixelsChronicHolder(AbstractBaseProbe):
+    """
+    Visualization object for Neuropixels chronic holder assemblies.
 
+    Combines probe visualization with appropriate chronic holder mesh.
+    Supports different configurations (head-fixed/freely-moving) for various
+    Neuropixels probe types.
+
+    Parameters
+    ----------
+    probetype : str
+        Type of Neuropixels probe ('NP24', 'NP24a', 'NP1')
+    chassis_type : str
+        Type of holder chassis ('head_fixed' or 'freely_moving')
+    vistaplotter : pyvista.Plotter, optional
+        PyVista plotter instance for visualization
+    starting_position : tuple, default=(0,0,0)
+        Initial holder position
+    starting_angles : tuple, default=(0,0,0)
+        Initial holder rotation angles
+    active : bool, default=True
+        Whether holder starts in active state
+    root_intersection_mesh : pyvista.PolyData, optional
+        Brain surface mesh for intersection calculations
+    **kwargs : dict
+        Additional keyword arguments passed to AbstractBaseProbe
+
+    Raises
+    ------
+    ValueError
+        If invalid probetype or chassis_type is provided
+    """
     # Define mapping of (chassis_type, probetype) to the mesh file and name that gets logged to the experiment file
     mesh_mapping = {
         ('head_fixed', 'NP24'): ('np2_head_fixed.stl', 'NP2 chronic holder - head fixed'),
@@ -121,7 +224,14 @@ class NeuropixelsChronicHolder(AbstractBaseProbe):
 
     @property
     def shank_origins(self):
-        '''Used for tracking the regions that each shank is in'''
+        """
+        Calculate current positions of probe shank origins.
+
+        Returns
+        -------
+        ndarray
+            Array of shape (n_shanks, 3) with current shank origin coordinates
+        """
         dims = np.stack(self.shank_dims_um) # shanks by dims
         offsets = np.stack(self.shank_offsets_um)
         offsets[:,0] = offsets[:,0] + dims[:,0] / 2
@@ -171,17 +281,19 @@ class NeuropixelsChronicHolder(AbstractBaseProbe):
             actor.prop.color = col
 
 class CranialWindow5mm(VVASPBaseVisualizerClass):
+    """Placeholder for 5mm cranial window visualization."""
     name = "Cranial Window - 5mm"
     def __init__(self):
         pass
 
-class HistologyTrack(VVASPBaseVisualizerClass): # Maybe extend Probe class instead?
-    # TODO: no movement, just a static mesh
+class HistologyTrack(VVASPBaseVisualizerClass):
+    """Placeholder for histology track visualization."""
     name = "Histology Track"
     def __init__(self):
         pass
 
 class Neuron(VVASPBaseVisualizerClass):
+    """Placeholder for neuron visualization."""
     name = "Neuron"
     def __init__(self):
         pass
