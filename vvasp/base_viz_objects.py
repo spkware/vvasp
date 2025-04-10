@@ -248,16 +248,22 @@ class VVASPBaseVisualizerClass(ABC):
         Set the object to active state and update its visual appearance.
         """
         self.active = True
-        for actor in self.actors:
-            actor.prop.color = ACTIVE_COLOR
+        for i, actor in enumerate(self.actors):
+            if hasattr(self, 'active_colors') and i < len(self.active_colors):
+                actor.prop.color = self.active_colors[i]
+            else:
+                actor.prop.color = ACTIVE_COLOR
 
     def make_inactive(self):
         """
         Set the object to inactive state and update its visual appearance.
         """
         self.active = False
-        for actor in self.actors:
-            actor.prop.color = INACTIVE_COLOR
+        for i, actor in enumerate(self.actors):
+            if hasattr(self, 'inactive_colors') and i < len(self.inactive_colors):
+                actor.prop.color = self.inactive_colors[i]
+            else:
+                actor.prop.color = INACTIVE_COLOR
     
     def __del__(self):
         """

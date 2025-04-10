@@ -261,16 +261,6 @@ class NeuropixelsChronicHolder(Probe):
             self.active_colors.append(ACTIVE_COLOR)
             self.inactive_colors.append(INACTIVE_COLOR)
     
-    def make_active(self):
-        self.active = True
-        for col,actor in zip(self.active_colors,self.actors):
-            actor.prop.color = col
-
-    def make_inactive(self):
-        self.active = False
-        for col,actor in zip(self.inactive_colors,self.actors):
-            actor.prop.color = col
-
 class CranialWindow5mm(VVASPBaseVisualizerClass):
     """Placeholder for 5mm cranial window visualization."""
     name = "Cranial Window - 5mm"
