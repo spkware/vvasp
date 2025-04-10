@@ -105,7 +105,6 @@ class Probe(AbstractBaseProbe):
     **kwargs : dict
         Additional keyword arguments passed to AbstractBaseProbe
     """
-    name = "Probe"
     def __init__(self,
                  probetype,
                  vistaplotter=None,
@@ -114,13 +113,20 @@ class Probe(AbstractBaseProbe):
                  active=True,
                  root_intersection_mesh=None,
                  **kwargs):
-        self.name = probetype
-        geometry_data = probe_geometries[probetype]
+        # Replace NP24a with NP24 for geometry lookup
+        geometry_lookup_type = probetype.replace('4a', '4')
+        geometry_data = probe_geometries[geometry_lookup_type]
         self.probetype = probetype
         self.shank_offsets_um = geometry_data['shank_offsets_um'] # the offsets of the shanks in um
         self.shank_dims_um = geometry_data['shank_dims_um'] # the dimensions of one shank in um
         super().__init__(vistaplotter, starting_position, starting_angles, active, root_intersection_mesh, **kwargs)
+        self._name = probetype  # Set name after parent initialization
     
+    @property
+    def name(self):
+        """Return the name of the probe type."""
+        return self._name
+
     def create_meshes(self):
         """
         Create rectangular meshes for each probe shank.
@@ -151,7 +157,7 @@ class Probe(AbstractBaseProbe):
         rotated_offsets = np.dot(offsets, self.rotation_matrix.T)
         return rotated_offsets + self.origin
 
-class NeuropixelsChronicHolder(AbstractBaseProbe):
+class NeuropixelsChronicHolder(Probe):
     """
     Visualization object for Neuropixels chronic holder assemblies.
 
@@ -176,7 +182,7 @@ class NeuropixelsChronicHolder(AbstractBaseProbe):
     root_intersection_mesh : pyvista.PolyData, optional
         Brain surface mesh for intersection calculations
     **kwargs : dict
-        Additional keyword arguments passed to AbstractBaseProbe
+        Additional keyword arguments passed to Probe
 
     Raises
     ------
@@ -184,7 +190,7 @@ class NeuropixelsChronicHolder(AbstractBaseProbe):
         If invalid probetype or chassis_type is provided
     """
     # Define mapping of (chassis_type, probetype) to the mesh file and name that gets logged to the experiment file
-    mesh_mapping = {
+    MESH_MAPPING = {
         ('head_fixed', 'NP24'): ('np2_head_fixed.stl', 'NP2 chronic holder - head fixed'),
         ('freely_moving', 'NP24'): ('np2_freely_moving.stl', 'NP2 chronic holder - freely moving'),
         ('head_fixed', 'NP24a'): ('np2a_head_fixed.stl', 'NP2a chronic holder - head fixed'),
@@ -193,6 +199,23 @@ class NeuropixelsChronicHolder(AbstractBaseProbe):
         ('freely_moving', 'NP1'): ('np1_freely_moving.stl', 'NP1 chronic holder - freely moving'),
     }   
     name = "NP2 w/ chronic holder"
+
+    # Constants for mesh transformations
+    SCALE_FACTOR = 1000
+    MESH_TRANSFORMATIONS = {
+        'NP24': {
+            'rotation': np.array([0,0,90]),
+            'origin': -np.array([-32.399,-12.612, 16.973]) * 1000
+        },
+        'NP1': {
+            'rotation': np.array([-90,0,0]),
+            'origin': -np.array([-.081, 1.978, -9.762]) * 1000
+        },
+        'NP24a': {
+            'rotation': np.array([0,0,90]),
+            'origin': -np.array([-33.259, 2.768, -2.080]) * 1000
+        }
+    }
 
     def __init__(self,
                  probetype,
@@ -203,81 +226,49 @@ class NeuropixelsChronicHolder(AbstractBaseProbe):
                  active=True,
                  root_intersection_mesh=None,
                  **kwargs):
-        self.probetype = probetype
-        geometry_data = probe_geometries[probetype.replace('4a','4')]
-        self.shank_offsets_um = geometry_data['shank_offsets_um'] # the offsets of the shanks in um
-        self.shank_dims_um = geometry_data['shank_dims_um'] # the dimensions of one shank in um
-        self.active_colors = []
-        self.inactive_colors = []
-
+        # First set up the mesh path and name
         from .default_prefs import MESH_DIR
-
-        # Retrieve the values or raise an error if not found
         try:
-            mesh_file, name = self.mesh_mapping[(chassis_type, probetype)]
+            mesh_file, name = self.MESH_MAPPING[(chassis_type, probetype)]
             self.mesh_path = MESH_DIR / mesh_file
             self.name = name
         except KeyError:
             raise ValueError(f'Invalid chassis_type "{chassis_type}" or probetype "{probetype}".')
 
-        super().__init__(vistaplotter, starting_position, starting_angles, active, root_intersection_mesh, **kwargs)
+        # Initialize color lists before parent initialization
+        self.active_colors = []
+        self.inactive_colors = []
 
-    @property
-    def shank_origins(self):
-        """
-        Calculate current positions of probe shank origins.
-
-        Returns
-        -------
-        ndarray
-            Array of shape (n_shanks, 3) with current shank origin coordinates
-        """
-        dims = np.stack(self.shank_dims_um) # shanks by dims
-        offsets = np.stack(self.shank_offsets_um)
-        offsets[:,0] = offsets[:,0] + dims[:,0] / 2
-        rotated_offsets = np.dot(offsets, self.rotation_matrix.T)
-        return rotated_offsets + self.origin
-    
+        # Initialize the base Probe class
+        super().__init__(probetype, vistaplotter, starting_position, starting_angles, active, root_intersection_mesh, **kwargs)
+        
     def create_meshes(self):
-        scale_factor = 1000
-        if self.probetype == 'NP24':
-            mesh_rotation = np.array([0,0,90])
-            mesh_origin = -np.array([-32.399,-12.612, 16.973]) * 1000
-        elif self.probetype == 'NP1':
-            mesh_rotation = np.array([-90,0,0])
-            mesh_origin = -np.array([-.081, 1.978, -9.762]) * 1000
-        elif self.probetype == 'NP24a':
-            mesh_rotation = np.array([0,0,90])
-            mesh_origin = -np.array([-33.259, 2.768, -2.080]) * 1000
-        else:
+        if self.probetype not in self.MESH_TRANSFORMATIONS:
             raise ValueError(f"probetype \"{self.probetype}\" not recognized.")
 
-        mesh = pv.read(self.mesh_path).scale(scale_factor)
-        mesh = mesh.translate(mesh_origin)
-        mesh.points = np.dot(mesh.points, rotation_matrix_from_degrees(*mesh_rotation,order='xyz').T)
+        transforms = self.MESH_TRANSFORMATIONS[self.probetype]
+        mesh = pv.read(self.mesh_path).scale(self.SCALE_FACTOR)
+        mesh = mesh.translate(transforms['origin'])
+        mesh.points = np.dot(mesh.points, rotation_matrix_from_degrees(*transforms['rotation'],order='xyz').T)
         self.meshes.append(mesh)
         self.active_colors.append('gray')
         self.inactive_colors.append('gray')
 
-        for dims, offset in zip(self.shank_dims_um, self.shank_offsets_um):
-            shank_vectors = np.array([[dims[0],dims[1],0], #the orthogonal set of vectors used to define a rectangle, these will be translated and rotated about the tip
-                                      [dims[0],0,0],
-                                      [0,0,dims[2]]])
-            vecs = shank_vectors + np.array(offset).T
-            self.meshes.append(pv.Rectangle(vecs.astype(np.float32)))
+        # Call the parent class's create_meshes to handle the probe shanks
+        super().create_meshes()
+        # Add colors for the shanks
+        for _ in self.shank_dims_um:
             self.active_colors.append(ACTIVE_COLOR)
             self.inactive_colors.append(INACTIVE_COLOR)
     
     def make_active(self):
         self.active = True
         for col,actor in zip(self.active_colors,self.actors):
-            #shnk.actor.prop.opacity = 1 #FIXME: opacity not working for some reason
             actor.prop.color = col
 
     def make_inactive(self):
         self.active = False
         for col,actor in zip(self.inactive_colors,self.actors):
-            #shnk.actor.prop.opacity = .2
             actor.prop.color = col
 
 class CranialWindow5mm(VVASPBaseVisualizerClass):

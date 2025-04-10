@@ -126,12 +126,7 @@ class VVASPBaseVisualizerClass(ABC):
         list[pv.PolyData]
             List of PyVista mesh objects
         """
-        # this function must set self.meshes to a list of pyvista meshes
-
-        # The following is just an example, replace with your mesh creation logic here
-        mesh1 = pv.PolyData()  # Replace this with your actual mesh creation
-        mesh2 = pv.PolyData()  # Replace this with your actual mesh creation
-        self.meshes = [mesh1, mesh2]
+        pass
 
     def spawn_actors(self):
         """
