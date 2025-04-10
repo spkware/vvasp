@@ -69,6 +69,8 @@ class VVASPBaseVisualizerClass(ABC):
         Keyword arguments passed to plotter.add_mesh()
     info : dict, optional
         Additional information to store with the object
+    rotation_origin : tuple, optional
+        Point about which the object should rotate, in micrometers. If None, uses the object's origin.
     **kwargs : dict
         Additional keyword arguments
     """
@@ -79,6 +81,7 @@ class VVASPBaseVisualizerClass(ABC):
                  active=True,
                  pyvista_mesh_args=None, # a list of dicts with keyword arguments for plotter.add_mesh()
                  info=None,
+                 rotation_origin=None,
                  **kwargs):
         self.info = info
         if pyvista_mesh_args is None:
@@ -97,7 +100,9 @@ class VVASPBaseVisualizerClass(ABC):
         if self.plotter is not None:
             self.create_meshes()
             self.spawn_actors()
+        self.rotation_origin = None # This must be set to None before setting initial probe position
         self.set_location(np.array(starting_position),np.array(starting_angles))
+        self.rotation_origin = np.array(rotation_origin) if rotation_origin is not None else None
         
     @property
     @abstractmethod
@@ -199,11 +204,15 @@ class VVASPBaseVisualizerClass(ABC):
         """
         if increment:
             self.origin += position_shift
+            if self.rotation_origin is not None:
+                self.rotation_origin += position_shift
         else:
             assert len(position_shift) == 3, ValueError('Position has to be 3 values') 
             old_position = np.array(self.origin)
             self.origin[:] = position_shift 
             position_shift = position_shift - old_position
+            if self.rotation_origin is not None:
+                self.rotation_origin += position_shift
         # move the meshes
         if self.plotter is not None:
             for i,mesh in enumerate(self.meshes):
@@ -236,11 +245,27 @@ class VVASPBaseVisualizerClass(ABC):
         old_rotation_matrix = self.rotation_matrix
         self.rotation_matrix = rotation_matrix_from_degrees(*self.angles)
         if self.plotter is not None:
+            # If we have a rotation origin different from the probe origin, we need to update the probe origin
+            # But only for elevation and azimuth rotations, not for spin
+            if self.rotation_origin is not None and not np.array_equal(self.rotation_origin, self.origin):
+                # Only update origin for non-spin rotations
+                if angle_shift[1] == 0:  # If there's no spin rotation
+                    # Calculate the vector from rotation origin to probe origin
+                    origin_offset = self.origin - self.rotation_origin
+                    # Rotate this offset vector
+                    rotated_offset = (self.rotation_matrix @ (old_rotation_matrix.T @ origin_offset.T)).T
+                    # Update the probe origin to maintain its position relative to the rotation
+                    self.origin = self.rotation_origin + rotated_offset
+
             for i,mesh in enumerate(self.meshes):
-                # rotations are performed relative to the objects origin, not the origin of the pyvista scene
-                # So we need to translate the mesh to the pyvista origin, rotate it, and then translate it back to its original spot
-                points = old_rotation_matrix.T @ (mesh.points - self.origin).T
-                mesh.points = (self.rotation_matrix @ points).T + self.origin
+                # For spin rotations, always use the probe origin
+                # For other rotations, use the rotation origin if specified
+                rotation_point = self.origin if angle_shift[1] != 0 else (
+                    self.rotation_origin if self.rotation_origin is not None else self.origin
+                )
+                # Translate to rotation point, rotate, then translate back
+                points = old_rotation_matrix.T @ (mesh.points - rotation_point).T
+                mesh.points = (self.rotation_matrix @ points).T + rotation_point
                 mesh.shallow_copy(mesh)
             
     def make_active(self):

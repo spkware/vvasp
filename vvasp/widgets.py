@@ -420,6 +420,7 @@ class VVASPPlanner(QMainWindow):
         new_object = object_class(vistaplotter=self.plotter,
                                   starting_position=[0,0,0],
                                   starting_angles=[90,0,0],
+                                  rotation_origin=[0,0,0],
                                   active=True,
                                   root_intersection_mesh=self.vvasp_atlas.meshes['root'],
                                   info=info)
