@@ -55,11 +55,9 @@ class VVASPPlanner(QMainWindow):
                  mapping='Beryl',
                  min_tree_depth=None,
                  max_tree_depth=None):
-        # filename will be letting you plot the same probes again
-        # It'll be just a human readable JSON file.
         super(VVASPPlanner,self).__init__()
         self.probe_path_window = None
-        self.filename = experiment_file
+        self.experiment_file = experiment_file
         self.setWindowTitle('VVASP Surgical Planner')
         self.resize(VVASPPlanner.DEFAULT_WIDTH,VVASPPlanner.DEFAULT_HEIGHT)
         self.objects = []
@@ -93,8 +91,8 @@ class VVASPPlanner(QMainWindow):
         self.initUI() 
         self.vlayout.addLayout(self.bottom_horizontal_widgets)
         self.show()
-        if self.filename is not None:
-            self._load_experiment(self.filename)
+        if self.experiment_file is not None:
+            self._load_experiment(self.experiment_file)
     
     def initUI(self):
         self._init_menubar()
@@ -327,17 +325,21 @@ class VVASPPlanner(QMainWindow):
             self.vvasp_atlas.add_atlas_region_mesh(acronym)
         self.plotter.update()
 
-    def _load_experiment(self, filename=None):
-        if filename is None:
-            self.filename = QFileDialog.getOpenFileName(self, 'Open file', str(io.preferences['default_save_dir']), filter='*.json')[0]
+    def _load_experiment(self, experiment_file=None):
+        if experiment_file is None:
+            self.experiment_file = QFileDialog.getOpenFileName(self, 'Open file', str(io.preferences['default_save_dir']), filter='*.json')[0]
         else:
-            self.filename = filename
-        experiment_data = io.load_experiment_file(self.filename)
+            self.experiment_file = experiment_file
+        # check that experiment file exists
+        if not self.experiment_file or not Path(self.experiment_file).exists():
+            QMessageBox.critical(self, 'Error', 'Experiment file does not exist or could not be loaded.')
+            return
+        experiment_data = io.load_experiment_file(self.experiment_file)
         if experiment_data is None:
             return
         print(experiment_data['atlas'], flush=True)
 
-        self.vvasp_atlas = atlas.VVASPAtlas.load_atlas_from_experiment_file(self.filename, self.plotter)
+        self.vvasp_atlas = atlas.VVASPAtlas.load_atlas_from_experiment_file(self.experiment_file, self.plotter)
 
         self.bottom_horizontal_widgets.removeWidget(self.atlas_view_box)
         del self.atlas_view_box
@@ -374,7 +376,7 @@ class VVASPPlanner(QMainWindow):
         #del self.vvasp_atlas
         self.vvasp_atlas = atlas.VVASPAtlas(self.plotter, mapping='Beryl', min_tree_depth=None, max_tree_depth=None) #TODO: allow the user to update tree depth
         self.active_object = None
-        self.filename = None
+        self.experiment_file = None
         self.bottom_horizontal_widgets.removeWidget(self.atlas_view_box)
         del self.atlas_view_box
         self._init_atlas_view_box()
@@ -382,28 +384,28 @@ class VVASPPlanner(QMainWindow):
         #self._update_probe_position_text()
      
     def _save_experiment(self):
-        if self.filename is None:
+        if self.experiment_file is None:
             self._save_experiment_as()
         else:
-            io.save_experiment(self.objects, self.vvasp_atlas, Path(io.preferences['default_save_dir']) / self.filename)
+            io.save_experiment(self.objects, self.vvasp_atlas, Path(io.preferences['default_save_dir']) / self.experiment_file)
     
     def _screenshot(self):
-        filename = QFileDialog.getSaveFileName(self, 'Save screenshot', str(io.preferences['default_save_dir']), filter='*.png')[0]
-        if filename: # handle the case where the user cancels the save dialog
-            self.filename = filename
-            self.plotter.screenshot(self.filename)
+        experiment_file = QFileDialog.getSaveFileName(self, 'Save screenshot', str(io.preferences['default_save_dir']), filter='*.png')[0]
+        if experiment_file: # handle the case where the user cancels the save dialog
+            self.experiment_file = experiment_file
+            self.plotter.screenshot(self.experiment_file)
 
     def _save_experiment_as(self):
-        filename = QFileDialog.getSaveFileName(self, 'Save file', str(io.preferences['default_save_dir']), filter='*.json')[0]
-        if filename: # handle the case where the user cancels the save dialog
-            self.filename = filename
-            io.save_experiment(self.objects, self.vvasp_atlas, io.EXPERIMENT_DIR / self.filename)
+        experiment_file = QFileDialog.getSaveFileName(self, 'Save file', str(io.preferences['default_save_dir']), filter='*.json')[0]
+        if experiment_file: # handle the case where the user cancels the save dialog
+            self.experiment_file = experiment_file
+            io.save_experiment(self.objects, self.vvasp_atlas, io.EXPERIMENT_DIR / self.experiment_file)
     
     def _export_experiment_as(self):
-        filename = QFileDialog.getSaveFileName(self, 'Save file', str(io.EXPERIMENT_DIR), filter='*.txt')[0]
-        if filename: # handle the case where the user cancels the save dialog
-            self.filename = filename
-            io.export_experiment(self.objects, self.vvasp_atlas, io.EXPERIMENT_DIR / self.filename)
+        experiment_file = QFileDialog.getSaveFileName(self, 'Save file', str(io.EXPERIMENT_DIR), filter='*.txt')[0]
+        if experiment_file: # handle the case where the user cancels the save dialog
+            self.experiment_file = experiment_file
+            io.export_experiment(self.objects, self.vvasp_atlas, io.EXPERIMENT_DIR / self.experiment_file)
      
     def contextMenuEvent(self, e):
         context = QMenu(self)
