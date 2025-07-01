@@ -100,6 +100,7 @@ def save_experiment(probes, atlas, filepath):
     experiment_data = dict(probes = [probe.probe_properties for probe in probes],
                            atlas = atlas.atlas_properties,
                            vvasp_commit_version = git_commit_hash,)
+    print(f'Saving to {filepath}', flush=True)
     with open(Path(filepath),'w') as fd:
         json.dump(experiment_data, fd, sort_keys=False, indent=4)
 

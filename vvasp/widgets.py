@@ -396,16 +396,16 @@ class VVASPPlanner(QMainWindow):
             self.plotter.screenshot(self.experiment_file)
 
     def _save_experiment_as(self):
-        experiment_file = QFileDialog.getSaveFileName(self, 'Save file', str(io.preferences['default_save_dir']), filter='*.json')[0]
+        experiment_file = Path(QFileDialog.getSaveFileName(self, 'Save file', str(io.preferences['default_save_dir']), filter='*.json')[0])
         if experiment_file: # handle the case where the user cancels the save dialog
             self.experiment_file = experiment_file
-            io.save_experiment(self.objects, self.vvasp_atlas, io.EXPERIMENT_DIR / self.experiment_file)
+            io.save_experiment(self.objects, self.vvasp_atlas, self.experiment_file)
     
     def _export_experiment_as(self):
-        experiment_file = QFileDialog.getSaveFileName(self, 'Save file', str(io.EXPERIMENT_DIR), filter='*.txt')[0]
+        experiment_file = Path(QFileDialog.getSaveFileName(self, 'Save file', str(io.EXPERIMENT_DIR), filter='*.txt')[0])
         if experiment_file: # handle the case where the user cancels the save dialog
             self.experiment_file = experiment_file
-            io.export_experiment(self.objects, self.vvasp_atlas, io.EXPERIMENT_DIR / self.experiment_file)
+            io.export_experiment(self.objects, self.vvasp_atlas, self.experiment_file)
      
     def contextMenuEvent(self, e):
         context = QMenu(self)

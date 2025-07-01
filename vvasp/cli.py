@@ -42,6 +42,14 @@ def main():
     app = QApplication(sys.argv)
     #w = VVASP(filename = opts.filename,
     #          atlas_name = opts.atlas,)
+
+    # resolve experiment file path
+    if opts.experiment_file is not None:
+        opts.experiment_file = Path(opts.experiment_file).resolve()
+        if not opts.experiment_file.exists():
+            raise FileNotFoundError(f"Experiment file {opts.experiment_file} does not exist.")
+    else:
+        opts.experiment_file = None
     w = VVASPPlanner(**vars(opts))
     sys.exit(app.exec_())
     
