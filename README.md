@@ -18,7 +18,23 @@ In addition to programmatically plotting probes, atlases, and other objects in a
 
 
 ## Installation
-To install in develop mode, create a new environment with ``conda create -n [env_name] python=3.10``, activate with ``conda activate [env_name]`` then run ``pip install -e .`` from the repository folder.
+To install in develop mode, run the following in a terminal that has Git and Conda:
+```
+conda create -n [env_name] python=3.10
+conda activate [env_name]
+git clone https://github.com/spkware/vvasp.git
+cd vvasp
+pip install -e .
+```
+## Updating
+To get the most recent updates pushed to the repo:
+```
+git pull
+```
+If you run vvasp and you get some sort of error about a missing module, the dependencies may have changed. In that case run the following.
+```
+pip install -U -e .
+```
 
 ## Usage
 VVASP can be used in any Jupyter Notebook or Python script, or the VVASP Trajectory Planner GUI can be started from the command line. 
