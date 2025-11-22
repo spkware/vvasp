@@ -19,6 +19,7 @@ dependencies = [
 	     "pyvista",
 	     "pyvistaqt",
        "pyqtgraph",
+       "gitpython",
        "PyQt5",
        "pandas",
        "tifffile",

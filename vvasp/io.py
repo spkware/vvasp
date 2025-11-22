@@ -1,6 +1,8 @@
 from .utils import *
 import shutil
 import os
+from git import Repo
+
 from .default_prefs import (ALL_PREFS, 
                             DEFAULT_PROBE_GEOMETRIES,
                             EXPERIMENT_DIR,
@@ -94,8 +96,8 @@ def update_prefs():
     raise NotImplementedError
 
 def save_experiment(probes, atlas, filepath):
-    git_commit_hash = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'],
-                                              cwd=Path(__file__).resolve().parent).decode('ascii').strip() # save the version of VVASP this file was created with
+    repo = Repo(Path(__file__).resolve().parents[1])
+    git_commit_hash = repo.head.commit.hexsha[:7]
 
     experiment_data = dict(probes = [probe.probe_properties for probe in probes],
                            atlas = atlas.atlas_properties,
