@@ -19,6 +19,7 @@ dependencies = [
 	     "pyvista",
 	     "pyvistaqt",
        "pyqtgraph",
+       "tqdm",
        "gitpython",
        "PyQt5",
        "pandas",
