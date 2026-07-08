@@ -462,8 +462,58 @@ class VVASPAtlas(BrainGlobeAtlas):
         for id in unique_ids:
             color = self.structures[id]['rgb_triplet']
             colored_slice[slc == id] = color
-        ax.imshow(colored_slice)
-        return fig, ax
+
+        # Render the slice in stereotaxic coordinates rather than voxel indices.
+        slice_axes = self._get_slice_display_axes(slice_plane)
+        row_voxels = np.arange(slc.shape[0])
+        col_voxels = np.arange(slc.shape[1])
+        row_edge_voxels = np.array([row_voxels[0] - 0.5, row_voxels[-1] + 0.5])
+        col_edge_voxels = np.array([col_voxels[0] - 0.5, col_voxels[-1] + 0.5])
+
+        row_coords_um = self._atlas_axis_voxels_to_bregma_um(row_edge_voxels, slice_axes[0])
+        col_coords_um = self._atlas_axis_voxels_to_bregma_um(col_edge_voxels, slice_axes[1])
+
+        ax.imshow(
+            colored_slice,
+            extent=(col_coords_um[0], col_coords_um[1], row_coords_um[1], row_coords_um[0]),
+        )
+        return ax
+
+    def _get_slice_display_axes(self, slice_plane):
+        """
+        Return the atlas axes shown on the image rows and columns for a slice plane.
+
+        Returns
+        -------
+        tuple
+            (row_axis, column_axis) atlas axis indices
+        """
+        slicing_index = self.space.sections.index(SLICE_TO_BG_SPACE[slice_plane])
+        return tuple(axis for axis in range(3) if axis != slicing_index)
+
+    def _atlas_axis_voxels_to_bregma_um(self, axis_voxels, atlas_axis):
+        """
+        Convert voxel coordinates along a single atlas axis to stereotaxic microns.
+        """
+        voxels = np.zeros((len(axis_voxels), 3), dtype=float)
+        voxels[:, atlas_axis] = axis_voxels
+        mlapdv_index = self._atlas_axis_to_mlapdv_index(atlas_axis)
+        return self.atlas_voxels_to_bregma_positions(voxels)[:, mlapdv_index]
+
+    def _atlas_axis_to_mlapdv_index(self, atlas_axis):
+        """
+        Map an atlas storage axis to the corresponding ML/AP/DV coordinate index.
+        """
+        orientation_code = self.metadata['orientation'][atlas_axis].lower()
+        axis_map = {
+            'r': 0,
+            'l': 0,
+            'a': 1,
+            'p': 1,
+            's': 2,
+            'i': 2,
+        }
+        return axis_map[orientation_code]
     
     def get_2d_slice(self, slice_plane, slice_location_um, return_full_annotation=False):
         """
