@@ -97,6 +97,7 @@ class VVASPPlanner(QMainWindow):
     def initUI(self):
         self._init_menubar()
         self._init_probe_position_box()
+        self._init_probe_list_box()
         self._init_atlas_view_box()
         self._init_keyboard_shortcuts()
         self._init_toolbar()
@@ -110,9 +111,89 @@ class VVASPPlanner(QMainWindow):
 
     def _init_toolbar(self):
         toolbar = QToolBar(self)
+        self.camera_toolbar = toolbar
         self.addToolBar(toolbar)
-        toolbar.addAction('Camera')
-        # TODO: build this out with the camera functionality of the BackgroundPlotter
+        self.saved_camera_views = {}
+        self.camera_view_actions = {}
+
+        toolbar.addAction('Save Custom View', self._save_camera_view)
+        toolbar.addAction('Delete Custom View', self._delete_camera_view)
+        toolbar.addSeparator()
+        toolbar.addAction('X Plane', lambda: self._set_camera_plane('x'))
+        toolbar.addAction('Y Plane', lambda: self._set_camera_plane('y'))
+        toolbar.addAction('Z Plane', lambda: self._set_camera_plane('z'))
+        self.custom_view_separator_action = toolbar.addSeparator()
+        toolbar.addAction('Screenshot', self._screenshot)
+        toolbar.addSeparator()
+
+    def _set_camera_plane(self, axis):
+        """Snap camera to a principal plane view."""
+        axis = axis.lower()
+        if axis == 'x':
+            self.plotter.view_yz()
+        elif axis == 'y':
+            self.plotter.view_xz()
+        elif axis == 'z':
+            self.plotter.view_xy()
+        else:
+            return
+        self.plotter.reset_camera()
+        self.plotter.update()
+
+    def _save_camera_view(self):
+        """Save the current camera position as the next numbered custom view."""
+        view_name = self._next_custom_view_name()
+
+        cam_pos = self.plotter.camera_position
+        if cam_pos is None:
+            QMessageBox.warning(self, 'Camera View', 'No camera position is currently available to save.')
+            return
+
+        # Store plain tuples so they are easy to serialize or inspect later.
+        self.saved_camera_views[view_name] = tuple(tuple(np.asarray(p, dtype=float)) for p in cam_pos)
+        self._add_camera_view_button(view_name)
+
+    def _next_custom_view_name(self):
+        """Return the first unused camera view name in the Custom View N sequence."""
+        i = 1
+        while f'Custom View {i}' in self.saved_camera_views:
+            i += 1
+        return f'Custom View {i}'
+
+    def _go_to_camera_view(self, view_name):
+        """Load a named camera view."""
+        if view_name not in self.saved_camera_views:
+            return
+
+        self.plotter.camera_position = self.saved_camera_views[view_name]
+        self.plotter.reset_camera_clipping_range()
+        self.plotter.update()
+
+    def _add_camera_view_button(self, view_name):
+        """Ensure a saved camera view has a toolbar button."""
+        if view_name in self.camera_view_actions:
+            return
+
+        action = QAction(view_name, self)
+        action.triggered.connect(lambda checked=False, name=view_name: self._go_to_camera_view(name))
+        self.camera_toolbar.insertAction(self.custom_view_separator_action, action)
+        self.camera_view_actions[view_name] = action
+
+    def _delete_camera_view(self):
+        """Delete a saved camera view and remove its toolbar button."""
+        if len(self.saved_camera_views) == 0:
+            QMessageBox.information(self, 'Camera View', 'No saved camera views to delete.')
+            return
+
+        items = sorted(self.saved_camera_views.keys())
+        view_name, ok = QInputDialog.getItem(self, 'Delete Camera View', 'Select view to delete:', items, 0, False)
+        if not ok or view_name == '':
+            return
+
+        del self.saved_camera_views[view_name]
+        action = self.camera_view_actions.pop(view_name, None)
+        if action is not None:
+            self.camera_toolbar.removeAction(action)
 
     def _init_menubar(self):
         self.menubar = self.menuBar()
@@ -288,6 +369,52 @@ class VVASPPlanner(QMainWindow):
         self.atlas_list_widget.itemClicked.connect(self.handle_atlas_list_item_click)
         self.bottom_horizontal_widgets.addWidget(self.atlas_view_box)
 
+    def _init_probe_list_box(self):
+        if hasattr(self, 'probe_list_box'):
+            return
+
+        self.probe_list_box = QGroupBox('Probes (0)')
+        self.probe_list_box.setFixedHeight(300)
+        self.probe_list_box.setFixedWidth(260)
+
+        layout = QVBoxLayout()
+        self.probe_list_widget = QListWidget()
+        self.probe_list_widget.setSelectionMode(QListWidget.SingleSelection)
+        self.probe_list_widget.itemClicked.connect(self._handle_probe_list_item_click)
+
+        layout.addWidget(self.probe_list_widget)
+        self.probe_list_box.setLayout(layout)
+        self.bottom_horizontal_widgets.addWidget(self.probe_list_box)
+
+    def _refresh_probe_list_box(self):
+        if not hasattr(self, 'probe_list_widget'):
+            return
+
+        self.probe_list_widget.blockSignals(True)
+        self.probe_list_widget.clear()
+        for idx, obj in enumerate(self.objects):
+            display_name = getattr(obj, 'info', None) or getattr(obj, 'name', f'Probe {idx + 1}')
+            item = QListWidgetItem(f'{idx + 1}: {display_name}')
+            item.setData(Qt.UserRole, idx)
+            if self.active_object == idx:
+                font = item.font()
+                font.setBold(True)
+                item.setFont(font)
+                item.setBackground(QColor(220, 240, 255))
+                self.probe_list_widget.addItem(item)
+                self.probe_list_widget.setCurrentItem(item)
+            else:
+                self.probe_list_widget.addItem(item)
+        self.probe_list_widget.blockSignals(False)
+        self.probe_list_box.setTitle(f'Probes ({len(self.objects)})')
+
+    def _handle_probe_list_item_click(self, item):
+        idx = item.data(Qt.UserRole)
+        if idx is None:
+            return
+        if idx != self.active_object:
+            self.update_active_object(idx)
+
     def populate_list(self, filter_text=""):
         """Populates the list widget while preserving check states."""
         self.atlas_list_widget.clear()
@@ -362,6 +489,9 @@ class VVASPPlanner(QMainWindow):
                                root_intersection_mesh=self.vvasp_atlas.meshes['root']))
             if p['active']:
                 self.active_object = i
+        if len(self.objects) > 0 and self.active_object is None:
+            self.active_object = 0
+        self._refresh_probe_list_box()
         self._update_probe_position_text()
         self._update_shortcut_actions(disconnect_existing=False)
         self.plotter.update()
@@ -381,6 +511,7 @@ class VVASPPlanner(QMainWindow):
         del self.atlas_view_box
         self._init_atlas_view_box()
         self._update_atlas_view_box()
+        self._refresh_probe_list_box()
         #self._update_probe_position_text()
      
     def _save_experiment(self):
@@ -446,9 +577,11 @@ class VVASPPlanner(QMainWindow):
                 self.active_object = None
                 self._update_probe_position_text()
                 self._disconnect_shortcuts()
+                self._refresh_probe_list_box()
     
     def update_active_object(self, active_object):
         self.active_object = active_object
+        self._refresh_probe_list_box()
 
         # change the object name that gets displayed
         self.probe_position_box.setTitle(f'Probe Position: {self.objects[active_object].info}')
