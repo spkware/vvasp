@@ -24,7 +24,7 @@ dependencies = [
        "PyQt5",
        "pandas",
        "tifffile",
-       "brainglobe-atlasapi"
+      "brainglobe-atlasapi>=3"
 ]
 dynamic = ["version"]
 

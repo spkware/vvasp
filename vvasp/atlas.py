@@ -11,7 +11,9 @@ This module provides tools for:
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from functools import cached_property
+from difflib import get_close_matches
 from brainglobe_atlasapi import BrainGlobeAtlas
+from brainglobe_atlasapi.list_atlases import get_all_atlases_lastversions
 
 from . import io
 from .utils import *
@@ -89,7 +91,23 @@ class VVASPAtlas(BrainGlobeAtlas):
                  rotation_angles=None,
                  scaling=None):
         atlas_name = atlas_name or io.preferences['default_atlas']
-        super().__init__(atlas_name=atlas_name, check_latest=check_latest_atlas)
+        try:
+            super().__init__(atlas_name=atlas_name, check_latest=check_latest_atlas)
+        except FileNotFoundError as exc:
+            available = []
+            try:
+                available = sorted(get_all_atlases_lastversions().keys())
+            except Exception:
+                available = []
+
+            msg = str(exc)
+            if available:
+                suggestions = get_close_matches(atlas_name, available, n=5, cutoff=0.5)
+                if suggestions:
+                    msg += f"\nDid you mean: {', '.join(suggestions)}?"
+                else:
+                    msg += "\nUse a valid atlas name from brainglobe-atlasapi (e.g., allen_human_500um)."
+            raise ValueError(msg) from exc
 
         self.name = atlas_name
         self.plotter = vistaplotter
@@ -176,8 +194,8 @@ class VVASPAtlas(BrainGlobeAtlas):
         else:
             raise ValueError('Specify either min_tree_depth/max_tree_depth or mapping, not both.')
 
-        self.structures_list['mesh_is_loaded'] = mesh_inds_to_show 
-        self.structures_list.loc[self.structures_list.acronym == 'root','mesh_is_loaded'] = 1 # always load the root mesh
+        self.structures_list['mesh_is_loaded'] = mesh_inds_to_show
+        self.structures_list.loc[self.structures_list.acronym == 'root', 'mesh_is_loaded'] = True  # always load the root mesh
 
     def _initialize_transformations(self, bregma_location=None, rotation_angles=None, scaling=None):
         """
@@ -192,12 +210,40 @@ class VVASPAtlas(BrainGlobeAtlas):
         scaling : array-like, optional
             Custom scaling factors for coordinate transform
         """
-        prefs = io.preferences['atlas_transformations'][self.name]
-        self.bregma_location = np.array(bregma_location) if bregma_location is not None else np.array(prefs['bregma_location'])
+        atlas_transformations = io.preferences.get('atlas_transformations', {})
+        prefs = atlas_transformations.get(self.name, {})
+
+        default_bregma = np.array([0.0, 0.0, 0.0])
+        default_angles = np.array([0.0, 0.0, 0.0])
+        default_scaling = np.array([1.0, 1.0, 1.0])
+
+        using_default_bregma = bregma_location is None and 'bregma_location' not in prefs
+        using_default_angles = rotation_angles is None and 'angles' not in prefs
+        using_default_scaling = scaling is None and 'scaling' not in prefs
+        if using_default_bregma or using_default_angles or using_default_scaling:
+            default_fields = []
+            if using_default_bregma:
+                default_fields.append('bregma_location=[0, 0, 0]')
+            if using_default_angles:
+                default_fields.append('angles=[0, 0, 0]')
+            if using_default_scaling:
+                default_fields.append('scaling=[1, 1, 1]')
+            warning_message = (
+                "\n"
+                "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+                f"WARNING: No atlas-specific stereotaxic transform was found for atlas '{self.name}'.\n"
+                f"VVASP is using DEFAULT transform values: {', '.join(default_fields)}\n"
+                "Coordinates may be incorrect until you define atlas_transformations for this atlas\n"
+                "in your preferences.json or pass explicit transform arguments.\n"
+                "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+            )
+            print(warning_message)
+
+        self.bregma_location = np.array(bregma_location) if bregma_location is not None else np.array(prefs.get('bregma_location', default_bregma))
         self.bregma_location_scaled = self.bregma_location * self.metadata['resolution']
-        self.rotation_angles = np.array(rotation_angles) if rotation_angles is not None else np.array(prefs['angles'])
+        self.rotation_angles = np.array(rotation_angles) if rotation_angles is not None else np.array(prefs.get('angles', default_angles))
         self.rotation_matrix = rotation_matrix_from_degrees(*self.rotation_angles, order='xyz')
-        self.scaling = np.array(scaling) if scaling is not None else np.array(prefs.get('scaling',[1.,1.,1.])) # no scaling if it doesn't exist
+        self.scaling = np.array(scaling) if scaling is not None else np.array(prefs.get('scaling', default_scaling))
 
     def _load_meshes(self):
         """
@@ -208,8 +254,14 @@ class VVASPAtlas(BrainGlobeAtlas):
         """
         for region_acronym in self.structures_list_remapped.acronym:
             try:
-                mesh = pv.read(self.meshfile_from_structure(region_acronym))
-            except FileNotFoundError:
+                mesh_obj = self.mesh_from_structure(region_acronym)
+                if mesh_obj is None:
+                    raise FileNotFoundError(f'No mesh returned by atlasapi for {region_acronym}')
+                mesh = pv.from_meshio(mesh_obj)
+                if not hasattr(mesh, 'ray_trace'):
+                    # ray_trace is provided by PolyData; convert meshio imports accordingly
+                    mesh = mesh.extract_surface(algorithm='dataset_surface').triangulate().clean()
+            except Exception:
                 print(f'Mesh file could not be found for {region_acronym}')
                 continue
             if self.transformed:
@@ -223,7 +275,7 @@ class VVASPAtlas(BrainGlobeAtlas):
         Add root mesh and bregma point actors to the PyVista plotter if enabled.
         """
         # Handle showing root and bregma meshes
-        if self.show_root and self.plotter is not None:
+        if self.show_root and self.plotter is not None and 'root' in self.meshes:
             self.root_actor = self.plotter.add_mesh(self.meshes['root'],
                                   color=self.meshcolor('root'),
                                   opacity=0.08,
@@ -234,7 +286,7 @@ class VVASPAtlas(BrainGlobeAtlas):
 
     @property
     def structures_list_remapped(self):
-        return self.structures_list[self.structures_list.mesh_is_loaded == 1] 
+        return self.structures_list[self.structures_list.mesh_is_loaded]
     
     def meshcolor(self, acronym):
         """
@@ -248,7 +300,10 @@ class VVASPAtlas(BrainGlobeAtlas):
         Returns
         -------
         tuple
-            RGB color triplet
+                mesh_obj = self.mesh_from_structure(region_acronym)
+                if mesh_obj is None:
+                    raise FileNotFoundError(f'No mesh returned by atlasapi for {region_acronym}')
+                mesh = pv.from_meshio(mesh_obj)
         """
         return self.structures[acronym]['rgb_triplet']       
 
@@ -257,15 +312,6 @@ class VVASPAtlas(BrainGlobeAtlas):
         Convert positions in bregma space to structure acronyms.
 
         Parameters
-        ----------
-        positions_um : array-like
-            Positions in micrometers relative to bregma
-        hierarchy_lev : int, optional
-            Hierarchy level to use for structure lookup
-
-        Returns
-        -------
-        list
             List of structure acronyms corresponding to each position
         """
         voxels = self.bregma_positions_to_atlas_voxels(positions_um)
@@ -394,6 +440,9 @@ class VVASPAtlas(BrainGlobeAtlas):
 
         if region_acronym in self.visible_region_actors.keys() and not force_replot:
             return #don't replot the same region
+        if region_acronym not in self.meshes:
+            print(f'Region {region_acronym} mesh is not loaded')
+            return
         m = self.meshes[region_acronym]
         if side=='left':
             m = m.clip(origin=(0,0,0), normal=(-1,0,0), invert=False, inplace=False)
@@ -666,10 +715,10 @@ class VVASPAtlas(BrainGlobeAtlas):
         """
         Clean up PyVista actors when object is deleted.
         """
-        temp = list(self.visible_region_actors.keys())
+        temp = list(getattr(self, 'visible_region_actors', {}).keys())
         for region in temp:
             self.remove_atlas_region_mesh(region)
-        if self.show_root and self.plotter is not None:
+        if getattr(self, 'show_root', False) and getattr(self, 'plotter', None) is not None and hasattr(self, 'root_actor'):
             self.plotter.remove_actor(self.root_actor)
-        if self.show_bregma and self.plotter is not None:
+        if getattr(self, 'show_bregma', False) and getattr(self, 'plotter', None) is not None and hasattr(self, 'bregma_actor'):
             self.plotter.remove_actor(self.bregma_actor)

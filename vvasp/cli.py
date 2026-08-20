@@ -50,7 +50,10 @@ def main():
             raise FileNotFoundError(f"Experiment file {opts.experiment_file} does not exist.")
     else:
         opts.experiment_file = None
-    w = VVASPPlanner(**vars(opts))
+    try:
+        w = VVASPPlanner(**vars(opts))
+    except (ValueError, FileNotFoundError) as exc:
+        parser.exit(2, f"Error: {exc}\n")
     sys.exit(app.exec_())
     
 if __name__ == '__main__':
