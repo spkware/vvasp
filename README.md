@@ -20,7 +20,7 @@ In addition to programmatically plotting probes, atlases, and other objects in a
 ## Installation
 To install in develop mode, run the following in a terminal that has Git and Conda:
 ```
-conda create -n [env_name] python=3.10
+conda create -n [env_name] python=3.11
 conda activate [env_name]
 git clone https://github.com/spkware/vvasp.git
 cd vvasp
