@@ -24,6 +24,24 @@ def __fix_json_indent(text):
     import re
     return  re.sub('{"', '{\n"', re.sub('\[\[', '[\n[', re.sub('\]\]', ']\n]', re.sub('}', '\n}', text))))
 
+def __dump_json(filepath, data):
+    with open(filepath, 'w') as fd:
+        json.dump(data, fd, sort_keys=False, indent=4)
+
+def __merge_with_default_order(current, defaults):
+    merged = {}
+
+    # Keep canonical default key order first.
+    for key, default_value in defaults.items():
+        merged[key] = current.get(key, default_value)
+
+    # Preserve any user-defined keys after defaults.
+    for key, value in current.items():
+        if key not in merged:
+            merged[key] = value
+
+    return merged
+
 def __setup_prefs():
     if not EXPERIMENT_DIR.exists():
         print(f'Creating experiment directory at {EXPERIMENT_DIR}')
@@ -49,37 +67,25 @@ def __setup_prefs():
         PREFS_FILE.parent.mkdir()
 
     for fpath, prefs in zip(ALL_PREF_FILES, ALL_PREFS):
-        with open(fpath,'w') as fd:
-            json.dump(prefs,
-                      fd,
-                      sort_keys=True,
-                      indent=4)
+        __dump_json(fpath, prefs)
         print(f'Preferences file created at {fpath}')
 
 def __load_prefs():
     with open(PREFS_FILE,'r') as fd:
         prefs = json.load(fd)
-    for k in DEFAULT_PREFERENCES:
-        if k not in prefs.keys():
-            prefs[k] = DEFAULT_PREFERENCES[k]
+    prefs = __merge_with_default_order(prefs, DEFAULT_PREFERENCES)
 
     with open(MOVEMENT_KEYBINDS_FILE,'r') as fd:
         movement_keybinds = json.load(fd)
-    for k in DEFAULT_MOVEMENT_KEYBINDS:
-        if k not in prefs.keys():
-            movement_keybinds[k] = DEFAULT_MOVEMENT_KEYBINDS[k]
+    movement_keybinds = __merge_with_default_order(movement_keybinds, DEFAULT_MOVEMENT_KEYBINDS)
 
     with open(STATIC_KEYBINDS_FILE,'r') as fd:
         static_keybinds = json.load(fd)
-    for k in DEFAULT_STATIC_KEYBINDS:
-        if k not in prefs.keys():
-            static_keybinds[k] = DEFAULT_STATIC_KEYBINDS[k]
+    static_keybinds = __merge_with_default_order(static_keybinds, DEFAULT_STATIC_KEYBINDS)
 
     with open(PROBE_GEOMETRIES_FILE,'r') as fd:
         probe_geometries = json.load(fd)
-    for k in DEFAULT_PROBE_GEOMETRIES:
-        if k not in prefs.keys():
-            probe_geometries[k] = DEFAULT_PROBE_GEOMETRIES[k]
+    probe_geometries = __merge_with_default_order(probe_geometries, DEFAULT_PROBE_GEOMETRIES)
     if USER_MESH_TRANSFORMATIONS_FILE.exists():
         with open(USER_MESH_TRANSFORMATIONS_FILE,'r') as fd:
             custom_user_mesh_transformations = json.load(fd)

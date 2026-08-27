@@ -39,7 +39,8 @@ from PyQt5.QtWidgets import (QWidget,
                              QDockWidget,
                              QFileDialog,
                              QDialog,
-                             QInputDialog)
+                             QInputDialog,
+                             QAbstractSpinBox)
 
 from PyQt5.QtGui import QContextMenuEvent, QImage, QKeyEvent, QPixmap,QBrush,QPen,QColor,QFont,QKeySequence
 from PyQt5.QtCore import Qt,QSize,QRectF,QLineF,QPointF,QTimer,QSettings
@@ -64,6 +65,9 @@ class VVASPPlanner(QMainWindow):
         self.active_object = None
         self.visible_regions = []
         self.shortcuts_connected = False
+        self._updating_probe_position_widgets = False
+        self.help_dock_window = None
+        self.help_text_widget = None
 
         self.vlayout = QVBoxLayout()
         # TODO: Make this work with QDockWidget.
@@ -96,12 +100,71 @@ class VVASPPlanner(QMainWindow):
     
     def initUI(self):
         self._init_probe_path_dock()
+        self._init_help_bar()
         self._init_menubar()
         self._init_probe_position_box()
         self._init_probe_list_box()
         self._init_atlas_view_box()
         self._init_keyboard_shortcuts()
         self._init_toolbar()
+
+    def _init_help_bar(self):
+        if self.help_dock_window is not None:
+            return
+
+        self.help_dock_window = QDockWidget('Help - Keybinds', self)
+        self.help_dock_window.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea | Qt.BottomDockWidgetArea)
+        self.help_dock_window.setFeatures(QDockWidget.DockWidgetClosable | QDockWidget.DockWidgetMovable)
+
+        container = QWidget(self.help_dock_window)
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(6, 6, 6, 6)
+
+        self.help_text_widget = QTextEdit(container)
+        self.help_text_widget.setReadOnly(True)
+        self.help_text_widget.setLineWrapMode(QTextEdit.NoWrap)
+        layout.addWidget(self.help_text_widget)
+
+        self.help_dock_window.setWidget(container)
+        self.addDockWidget(Qt.RightDockWidgetArea, self.help_dock_window)
+        self.help_dock_window.setVisible(False)
+
+    def _format_help_action(self, action_name):
+        if not isinstance(action_name, str):
+            return str(action_name)
+        return action_name.replace('_', ' ').strip().title()
+
+    def _generate_keybind_help_text(self):
+        lines = [
+            'VVASP Keybinds',
+            '=============',
+            '',
+            'Built-in:',
+            '  F1: Toggle this help bar',
+            '',
+            'Movement keybinds (active object):',
+        ]
+
+        for keypress, (action, multiplier) in sorted(io.movement_keybinds.items(), key=lambda kv: kv[0].lower()):
+            lines.append(f'  {keypress}: {self._format_help_action(action)} ({multiplier})')
+
+        lines.append('')
+        lines.append('Static keybinds:')
+        for keypress, action in sorted(io.static_keybinds.items(), key=lambda kv: kv[0].lower()):
+            lines.append(f'  {keypress}: {self._format_help_action(action)}')
+
+        return '\n'.join(lines)
+
+    def _refresh_help_bar_content(self):
+        if self.help_text_widget is None:
+            return
+        self.help_text_widget.setPlainText(self._generate_keybind_help_text())
+
+    def _toggle_help_bar(self):
+        if self.help_dock_window is None:
+            return
+        self._refresh_help_bar_content()
+        self.help_dock_window.setVisible(not self.help_dock_window.isVisible())
 
     def _init_probe_path_dock(self):
         if self.probe_path_window is not None:
@@ -229,97 +292,169 @@ class VVASPPlanner(QMainWindow):
         self.toggle_action = self.probe_path_window.toggleViewAction()
         self.toggle_action.setText("Probe Path View")
         self.viewMenu.addAction(self.toggle_action)
+        if self.help_dock_window is not None:
+            self.help_toggle_action = self.help_dock_window.toggleViewAction()
+            self.help_toggle_action.setText('Help Bar')
+            self.help_toggle_action.triggered.connect(self._refresh_help_bar_content)
+            self.viewMenu.addAction(self.help_toggle_action)
+
+        self.helpMenu = self.menubar.addMenu('Help')
+        self.helpMenu.addAction('Show Keybinds', self._toggle_help_bar)
     
 
     def _init_probe_position_box(self):
         self.probe_position_box = QGroupBox('Probe Position')
-        xyzlabels = ['AP','ML','DV','Depth (along probe axis)']
+        xyzlabels = ['AP','ML','DV','Depth']
         anglelabels = ['Elevation', 'Azimuth', 'Roll']
 
         vbox = QVBoxLayout()
 
+        def _add_labeled_spinbox(row_layout, label_text, spinbox):
+            pair_layout = QHBoxLayout()
+            pair_layout.setContentsMargins(0, 0, 0, 0)
+            pair_layout.setSpacing(2)
+            label = QLabel(label_text)
+            label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            pair_layout.addWidget(label)
+            spinbox.setMinimumWidth(90)
+            spinbox.setMaximumWidth(100)
+            pair_layout.addWidget(spinbox)
+            pair_layout.setStretch(0, 0)
+            pair_layout.setStretch(1, 1)
+            row_layout.addLayout(pair_layout, 1)
+
         self.xyz_fields = QHBoxLayout()
-        self.xyz_fields.addWidget(QLabel(xyzlabels[0]))
-        from PyQt5.QtWidgets import QDoubleSpinBox
+        self.xyz_fields.setSpacing(8)
         self.xline = QDoubleSpinBox(minimum=-10000,
                                     maximum=10000,
                                     decimals=0,
                                     singleStep=100)
-        self.xyz_fields.addWidget(self.xline)
-        self.xyz_fields.addWidget(QLabel(xyzlabels[1]))
+        _add_labeled_spinbox(self.xyz_fields, xyzlabels[0], self.xline)
         self.yline = QDoubleSpinBox(minimum=-10000,
                                     maximum=10000,
                                     decimals=0,
                                     singleStep=100)
-        self.xyz_fields.addWidget(self.yline)
-        self.xyz_fields.addWidget(QLabel(xyzlabels[2]))
+        _add_labeled_spinbox(self.xyz_fields, xyzlabels[1], self.yline)
         self.zline = QDoubleSpinBox(minimum=-10000,
                                     maximum=10000,
                                     decimals=0,
                                     singleStep=100)
-        self.xyz_fields.addWidget(self.zline)
-        self.xyz_fields.addWidget(QLabel(xyzlabels[3]))
+        _add_labeled_spinbox(self.xyz_fields, xyzlabels[2], self.zline)
         self.depthline = QDoubleSpinBox(minimum=-10000,
                                     maximum=10000,
                                     decimals=0,
                                     singleStep=100)
-        self.xyz_fields.addWidget(self.depthline)
+        self.depthline.setToolTip('Depth (along probe axis)')
+        _add_labeled_spinbox(self.xyz_fields, xyzlabels[3], self.depthline)
         vbox.addLayout(self.xyz_fields)
 
         self.angle_fields = QHBoxLayout()
-        self.angle_fields.addWidget(QLabel(anglelabels[0]))
+        self.angle_fields.setSpacing(8)
         self.xangline = QDoubleSpinBox(minimum=-10000,
                                        maximum=10000,
                                        decimals=0,
                                        singleStep=5)
-        self.angle_fields.addWidget(self.xangline)
-        self.angle_fields.addWidget(QLabel(anglelabels[1]))
+        _add_labeled_spinbox(self.angle_fields, anglelabels[0], self.xangline)
         self.yangline = QDoubleSpinBox(minimum=-10000,
                                        maximum=10000,
                                        decimals=0,
                                        singleStep=5)
-        self.angle_fields.addWidget(self.yangline)
-        self.angle_fields.addWidget(QLabel(anglelabels[2]))
+        _add_labeled_spinbox(self.angle_fields, anglelabels[1], self.yangline)
         self.zangline = QDoubleSpinBox(minimum=-10000,
                                        maximum=10000,
                                        decimals=0,
                                        singleStep=5)
-        self.angle_fields.addWidget(self.zangline)
+        _add_labeled_spinbox(self.angle_fields, anglelabels[2], self.zangline)
         vbox.addLayout(self.angle_fields)
         self.probe_position_box.setLayout(vbox)
+
         for q in [self.xangline,self.yangline,self.zangline,
                   self.xline,self.yline,self.zline,self.depthline]:
-            q.setReadOnly(True) 
-        # TODO:link when set to toggle origin position, make not editable otherwise
-        def _on_value_changed(value):
-            angles = [self.xangline.value(),self.yangline.value(),self.zangline.value()]
-            origin = [self.yline.value(),self.xline.value(),self.depthline.value()]
-            # try to update if changed
-            #self.objects[self.active_object].set_location(origin,angles)
-        #for q in [self.xangline,self.yangline,self.zangline,
-        #      self.xline,self.yline]:
-        #      q.valueChanged.connect(_on_value_changed)
-            
-        #TODO: connect the line edits to the probe position
-        #for line_edit in self.probe_position_box.lineEdits:
-        #    line_edit.textChanged.connect(self.update_probe_position_via_text)
-        #self.probe_position_box.setFocusPolicy(Qt.StrongFocus)
-        #self.probe_position_box.keyPressEvent = self.onKeyPress
+            q.setKeyboardTracking(False)
+            q.valueChanged.connect(self._on_probe_position_spinbox_changed)
+
+        self._update_probe_position_spinbox_editability()
 
         self.probe_position_box.setFixedWidth(700)
         self.bottom_horizontal_widgets.addWidget(self.probe_position_box)
+
+    def _set_spinbox_editable(self, spinbox, editable):
+        spinbox.setReadOnly(not editable)
+        spinbox.setButtonSymbols(QAbstractSpinBox.UpDownArrows if editable else QAbstractSpinBox.NoButtons)
+
+    def _update_probe_position_spinbox_editability(self):
+        spinboxes = [self.xline, self.yline, self.zline, self.depthline, self.xangline, self.yangline, self.zangline]
+        if len(self.objects) == 0 or self.active_object is None:
+            for box in spinboxes:
+                self._set_spinbox_editable(box, False)
+            return
+
+        prb = self.objects[self.active_object]
+        for box in [self.xline, self.yline, self.zline, self.xangline, self.yangline, self.zangline]:
+            self._set_spinbox_editable(box, True)
+
+        has_entry_drive = hasattr(prb, 'drive_probe_from_entry') and hasattr(prb, 'root_intersection_mesh') and prb.root_intersection_mesh is not None
+        self._set_spinbox_editable(self.depthline, has_entry_drive)
+
+        if has_entry_drive:
+            # Entry DV is constrained by the mesh intersection and is display-only.
+            self._set_spinbox_editable(self.zline, False)
+
+    def _on_probe_position_spinbox_changed(self, _value):
+        if self._updating_probe_position_widgets:
+            return
+        if self.active_object is None or len(self.objects) == 0:
+            return
+
+        prb = self.objects[self.active_object]
+        angles = np.array([
+            self.xangline.value(),
+            self.zangline.value(),
+            self.yangline.value(),
+        ], dtype=float)
+
+        ap = float(self.xline.value())
+        ml = float(self.yline.value())
+        dv = float(self.zline.value())
+        depth = max(0.0, float(self.depthline.value()))
+        changed_box = self.sender()
+
+        try:
+            has_entry_drive = hasattr(prb, 'drive_probe_from_entry') and hasattr(prb, 'root_intersection_mesh') and prb.root_intersection_mesh is not None
+            if has_entry_drive:
+                if changed_box in (self.xangline, self.yangline, self.zangline):
+                    # Angle edits should rotate around the current tip, not lock to entry point.
+                    prb.set_location(np.array(prb.origin, dtype=float), angles)
+                elif changed_box in (self.xline, self.yline, self.depthline):
+                    prb.drive_probe_from_entry(np.array([ml, ap], dtype=float), angles, depth, root_mesh=prb.root_intersection_mesh)
+                else:
+                    prb.set_location(np.array(prb.origin, dtype=float), angles)
+            else:
+                prb.set_location(np.array([ml, ap, dv], dtype=float), angles)
+        except Exception as exc:
+            print(f'Failed to update probe from spinboxes: {exc}', flush=True)
+            return
+
+        self.plotter.update()
+        self._update_probe_position_text()
+        if self.probe_path_window is not None:
+            self.probe_path_window.update_probe_path_plot()
     
     def _init_keyboard_shortcuts(self):
         # initialize dynamic shortcuts, these change when a new probe is selected
         self.dynamic_shortcuts = {QShortcut(QKeySequence(keypress), self): [action, multiplier] \
             for keypress, (action, multiplier) in io.movement_keybinds.items()}
-        # TODO: initialize and connect the static shortcuts
+        self.static_shortcuts = {}
         for keypress,action in io.static_keybinds.items():
             shortcut = QShortcut(QKeySequence(keypress), self)
+            self.static_shortcuts[keypress] = shortcut
             if hasattr(self, action) and callable(getattr(self, action)):
-                shortcut.activated.connect(eval(f'self.{action}'))
+                shortcut.activated.connect(getattr(self, action))
             else:
                 print(f'No callable function {action} found for keypress {keypress}',flush=True)
+
+        self.help_shortcut = QShortcut(QKeySequence('F1'), self)
+        self.help_shortcut.activated.connect(self._toggle_help_bar)
           
 
     def _disconnect_shortcuts(self):
@@ -590,6 +725,7 @@ class VVASPPlanner(QMainWindow):
     def update_active_object(self, active_object):
         self.active_object = active_object
         self._refresh_probe_list_box()
+        self._update_probe_position_spinbox_editability()
 
         # change the object name that gets displayed
         self.probe_position_box.setTitle(f'Probe Position: {self.objects[active_object].info}')
@@ -615,37 +751,42 @@ class VVASPPlanner(QMainWindow):
             self._update_shortcut_actions(disconnect_existing=False)
     
     def _update_probe_position_text(self):
-        if len(self.objects) == 0: #handle case with no objects present
-            self.xline.setValue(0)
-            self.yline.setValue(0) 
-            self.zline.setValue(0)
-            self.depthline.setValue(0)
-            self.xangline.setValue(0) 
-            self.yangline.setValue(0) 
-            self.zangline.setValue(0)
-            return
-        else:
+        self._updating_probe_position_widgets = True
+        try:
+            if len(self.objects) == 0 or self.active_object is None: #handle case with no objects present
+                self.xline.setValue(0)
+                self.yline.setValue(0)
+                self.zline.setValue(0)
+                self.depthline.setValue(0)
+                self.xangline.setValue(0)
+                self.yangline.setValue(0)
+                self.zangline.setValue(0)
+                return
+
             prb = self.objects[self.active_object]
-        if hasattr(prb, 'root_intersection_mesh'):
-            if prb.entry_point is not None:
-                self.xline.setValue(prb.entry_point[1])
-                self.yline.setValue(prb.entry_point[0]) 
-                self.zline.setValue(prb.entry_point[2])
-                self.depthline.setValue(prb.depth)
+            if hasattr(prb, 'root_intersection_mesh'):
+                if prb.entry_point is not None:
+                    self.xline.setValue(prb.entry_point[1])
+                    self.yline.setValue(prb.entry_point[0])
+                    self.zline.setValue(prb.entry_point[2])
+                    self.depthline.setValue(prb.depth)
+                else:
+                    self.xline.setValue(prb.origin[1])
+                    self.yline.setValue(prb.origin[0])
+                    self.zline.setValue(prb.origin[2])
+                    self.depthline.setValue(0)
             else:
-                self.xline.setValue(prb.origin[1]) 
+                self.xline.setValue(prb.origin[1])
                 self.yline.setValue(prb.origin[0])
                 self.zline.setValue(prb.origin[2])
                 self.depthline.setValue(0)
-        else:
-            self.xline.setValue(prb.origin[1])
-            self.yline.setValue(prb.origin[0]) 
-            self.zline.setValue(prb.origin[2])
-            self.depthline.setValue(0)
 
-        self.xangline.setValue(prb.angles[0]) 
-        self.yangline.setValue(prb.angles[2]) 
-        self.zangline.setValue(prb.angles[1])
+            self.xangline.setValue(prb.angles[0])
+            self.yangline.setValue(prb.angles[2])
+            self.zangline.setValue(prb.angles[1])
+        finally:
+            self._updating_probe_position_widgets = False
+        self._update_probe_position_spinbox_editability()
 
     def closeEvent(self,event):
         self.plotter.close()
