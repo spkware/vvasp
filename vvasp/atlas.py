@@ -253,17 +253,13 @@ class VVASPAtlas(BrainGlobeAtlas):
         and scaling according to the atlas configuration.
         """
         for region_acronym in self.structures_list_remapped.acronym:
-            try:
-                mesh_obj = self.mesh_from_structure(region_acronym)
-                if mesh_obj is None:
-                    raise FileNotFoundError(f'No mesh returned by atlasapi for {region_acronym}')
-                mesh = pv.from_meshio(mesh_obj)
-                if not hasattr(mesh, 'ray_trace'):
-                    # ray_trace is provided by PolyData; convert meshio imports accordingly
-                    mesh = mesh.extract_surface(algorithm='dataset_surface').triangulate().clean()
-            except Exception:
-                print(f'Mesh file could not be found for {region_acronym}')
-                continue
+            #try:
+            mesh_obj = self.mesh_from_structure(region_acronym)
+            if mesh_obj is None:
+                raise FileNotFoundError(f'No mesh returned by atlasapi for {region_acronym}')
+            mesh = pv.from_meshio(mesh_obj)
+            if not hasattr(mesh, 'ray_trace'):
+                mesh = mesh.extract_surface(algorithm=None).triangulate().clean()
             if self.transformed:
                 mesh.translate(-self.bregma_location_scaled, inplace=True)
                 mesh.points = np.dot(mesh.points, self.rotation_matrix.T)

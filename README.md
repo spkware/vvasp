@@ -27,6 +27,8 @@ cd vvasp
 pip install -e .
 ```
 ## Updating
+__WARNING: VVASP has now moved over to Python 3.11. If upgrading from a Python 3.10 version, you will need to create a new environment with Python 3.11 and install vvasp there from scratch. All your keybinds and presets should remain unchanged.__
+
 To get the most recent updates pushed to the repo:
 ```
 git pull

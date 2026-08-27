@@ -95,13 +95,22 @@ class VVASPPlanner(QMainWindow):
             self._load_experiment(self.experiment_file)
     
     def initUI(self):
+        self._init_probe_path_dock()
         self._init_menubar()
         self._init_probe_position_box()
         self._init_probe_list_box()
         self._init_atlas_view_box()
         self._init_keyboard_shortcuts()
         self._init_toolbar()
-        self.toggle_probe_path_window()
+
+    def _init_probe_path_dock(self):
+        if self.probe_path_window is not None:
+            return
+
+        self.probe_path_window = ProbePathDockWidget(main_window=self, parent=self)
+        self.addDockWidget(Qt.RightDockWidgetArea, self.probe_path_window)
+        self.resizeDocks([self.probe_path_window], [300], Qt.Horizontal)
+        self.probe_path_window.setVisible(True)
     
     def _add_action(self, tool_bar, key, method):
         action = QAction(key, self.app_window)
@@ -216,10 +225,9 @@ class VVASPPlanner(QMainWindow):
         # TODO: add atlas functionality here
 
         self.viewMenu = self.menubar.addMenu('Windows')
-        # toggleable action
-        self.toggle_action = QAction("Probe Path View", self)
-        self.toggle_action.setCheckable(True)
-        self.toggle_action.triggered.connect(self.toggle_probe_path_window)
+        assert self.probe_path_window is not None
+        self.toggle_action = self.probe_path_window.toggleViewAction()
+        self.toggle_action.setText("Probe Path View")
         self.viewMenu.addAction(self.toggle_action)
     
 
@@ -597,7 +605,8 @@ class VVASPPlanner(QMainWindow):
         # update the positon text
         self._update_probe_position_text()
         # update the probe path plot
-        self.probe_path_window.update_probe_path_plot()
+        if self.probe_path_window is not None:
+            self.probe_path_window.update_probe_path_plot()
 
         # connect the shortcuts to the new active object
         if self.shortcuts_connected:
@@ -644,39 +653,46 @@ class VVASPPlanner(QMainWindow):
             self.probe_path_window.close()
         event.accept()
 
-    def toggle_probe_path_window(self):
-        #if self.toggle_action.isChecked():
-        if self.probe_path_window is None: # Create window if it doesn't exist
-            #self.text_edit.setStyleSheet("background-color: lightgray;")
-            self.probe_path_window = ProbePathWindow(main_window=self)
-            self.probe_path_window.show()
-        else:
-            #self.text_edit.setStyleSheet("background-color: white;")
-            self.probe_path_window.close()
-
 #################
-## The second window, with probe tracks
+## The dock widget, with probe tracks
 #################
-class ProbePathWindow(QWidget):
-    """Second window that can be opened from the main window."""
-    def __init__(self, main_window):
-        super().__init__()
+class ProbePathDockWidget(QDockWidget):
+    """Dock widget that shows probe tracks inside the main window."""
+    def __init__(self, main_window, parent=None):
+        super().__init__("Probe Path View", parent)
         self.main_window = main_window
-        self.setWindowTitle("Probe Path View")
-        self.setGeometry(300, 300, 400, 800)
+        self.setAllowedAreas(Qt.RightDockWidgetArea | Qt.BottomDockWidgetArea)
+        self.setFeatures(QDockWidget.DockWidgetClosable | QDockWidget.DockWidgetMovable)
+        self.setMinimumWidth(20)
+        self.setMaximumWidth(520)
+        self.setContentsMargins(6, 6, 6, 6)
+        self.setStyleSheet("QDockWidget { border: 1px solid palette(mid); }")
+
+        title_bar = QWidget(self)
+        title_layout = QHBoxLayout(title_bar)
+        title_layout.setContentsMargins(8, 4, 8, 4)
+        title_layout.setSpacing(0)
+        title_label = QLabel("Probe Path View")
+        title_layout.addWidget(title_label)
+        title_layout.addStretch(1)
+        self.setTitleBarWidget(title_bar)
 
         self.update_timer = QTimer(self)
         self.update_timer.setSingleShot(True)
         self.update_timer.timeout.connect(self._update_probe_path_plot)
 
-        layout = QHBoxLayout()
-        self.setLayout(layout)
+        container = QWidget(self)
+        container.setMinimumWidth(0)
+        layout = QHBoxLayout(container)
+        layout.setContentsMargins(6, 6, 6, 6)
         self.plot = pg.PlotWidget()
+        self.plot.setMinimumWidth(0)
         self.plot.setBackground("w")  # Set white background
         self.plot.getPlotItem().hideAxis('bottom')  # Hide X-axis
         self.plot.getPlotItem().getAxis('left').setLabel('Distance from shank tip (um)')
         self.update_probe_path_plot()
         layout.addWidget(self.plot)
+        self.setWidget(container)
 
     def update_probe_path_plot(self):
         self.update_timer.start(300)  # only update the plot after some time break to not bog down main app
@@ -690,8 +706,9 @@ class ProbePathWindow(QWidget):
             return
         self.plot.clear()
         n_shanks = len(self.main_window.objects[self.main_window.active_object].shank_origins)
-        self.plot.setXRange(-1, n_shanks+1)
         boundaries, acronyms = self.main_window.objects[self.main_window.active_object].compute_region_intersections(self.main_window.vvasp_atlas)
+        max_depth = max((bound[-1] for bound in boundaries), default=0)
+        self.plot.setRange(xRange=(-0.5, max(n_shanks - 0.5, 0.5)), yRange=(0, max_depth), padding=0.05)
 
         # add the bars to the plot
         for i, (acc, bound) in enumerate(zip(acronyms, boundaries)): # iterate over shanks
@@ -715,7 +732,3 @@ class ProbePathWindow(QWidget):
                 text.setPos(i+.1, mp)  # Position to side of bar
                 self.plot.addItem(text)
         
-    def closeEvent(self, event):
-        self.main_window.probe_path_window = None
-        self.main_window.toggle_action.setChecked(False)
-        event.accept()
