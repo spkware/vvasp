@@ -510,6 +510,7 @@ class VVASPPlanner(QMainWindow):
         self.atlas_view_box.setLayout(layout)
 
         self.atlas_list_widget.itemClicked.connect(self.handle_atlas_list_item_click)
+        self.atlas_list_widget.itemPressed.connect(self._remember_atlas_item_state)
         self.bottom_horizontal_widgets.addWidget(self.atlas_view_box)
 
     def _init_probe_list_box(self):
@@ -585,10 +586,22 @@ class VVASPPlanner(QMainWindow):
                 item.setCheckState(2)  # 2 represents checked state
             else:
                 item.setCheckState(0)  # 0 represents unchecked state 
+
+    def _remember_atlas_item_state(self, item):
+        item.setData(Qt.UserRole, item.checkState())
          
     def handle_atlas_list_item_click(self, item):
         acronym = item.text()
+        previous_state = item.data(Qt.UserRole)
         state = item.checkState()
+
+        # If the check state did not change during the click, the user likely clicked
+        # the label text; toggle manually so label-click behaves like checkbox-click.
+        if previous_state == state:
+            state = 0 if state == 2 else 2
+            item.setCheckState(state)
+
+        self.checked_states[acronym] = state == 2
         if state == 0:
             self.vvasp_atlas.remove_atlas_region_mesh(acronym)
         elif state == 2:
